@@ -1,0 +1,139 @@
+BigQuery Schema Field Names
+
+Field Names to Derive for reporting through Looker Studio Connector
+
+visitStartTime, totals.timeOnSite, totals.visits
+
+Avg. Session Duration
+
+totals.visits
+
+Sessions
+
+hits
+
+Total Events
+
+total.visits
+
+WHERE
+
+hits.type = ‘PAGE'
+
+Pageviews
+
+hits.contentGroup.contentGroupUniqueViews2, totals.pageviews
+
+Unique Pageviews
+
+totals.visits
+
+WHERE 
+
+hits.type = ‘PAGE’ 
+
+hist.isEntrance = True
+
+Entrances
+
+totals.visits
+
+WHERE 
+
+hits.type = ‘PAGE’ 
+
+hist.isExit = True
+
+Exits
+
+Exits / totals.visits
+
+Exit Rate
+
+Subquery
+
+Previous Page Path
+
+totals.bounces, totals.visits
+
+WHERE
+
+hits.type = ‘PAGE’
+
+Bounce rate
+
+totals.visits, clientId
+
+Users
+
+totals.newVisits, clientId
+
+New Users
+
+trafficSource.campaign
+
+Campaign
+
+trafficSource.source
+
+Source
+
+trafficSource.medium
+
+Medium
+
+trafficSource.keyword
+
+Keyword
+
+trafficSource.adContent
+
+Ad Content
+
+device.deviceCategory
+
+Device Category
+
+geoNetwork.region
+
+Region
+
+hits.referer
+
+Full Referrer
+
+hits.page.pagePath
+
+Page
+
+hits.page.hostname
+
+Hostname
+
+hits.page.pageTitle
+
+Page Title
+
+hits.eventInfo.eventCategory
+
+Event Category
+
+hits.eventInfo.eventAction
+
+Event Action
+
+hits.eventInfo.eventLabel
+
+Event Label
+
+channelGrouping
+
+Default Channel Grouping
+
+date
+
+Month
+
+date
+
+Year
