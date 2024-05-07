@@ -1,0 +1,19 @@
+WITH path_and_prev AS (
+  SELECT
+  totalPageviews,
+  ARRAY(
+    SELECT AS STRUCT session.pagePath
+      , LAG(session.pagePath) OVER(ORDER BY i) previousPagePath
+    FROM UNNEST(hits) session WITH OFFSET i
+  ) x
+  FROM <ENTER THE NAME OF THE TABLE>
+  -- FROM `midyear-calling-214820.sub_analytics_21702316.relevant_dims_20240501`
+)
+
+SELECT pagePath, previousPagePath, COUNT(*) as pageviews
+FROM path_and_prev, UNNEST(x) 
+WHERE
+pagePath != previousPagePath
+AND pagePath = '/toyota/en/build-price/rav4?url_fragment=models-options'
+GROUP BY 1, 2
+ORDER BY 3 DESC
