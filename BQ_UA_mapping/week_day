@@ -1,0 +1,2 @@
+SELECT FORMAT_DATE('%A', DATE(DATETIME(PARSE_DATE('%Y%m%d',  date)))) AS weekday_name_full
+FROM `midyear-calling-214820.21702316.ga_sessions_20240501`
