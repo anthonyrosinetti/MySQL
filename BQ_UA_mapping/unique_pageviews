@@ -1,0 +1,13 @@
+select
+  hits.page.pagepath as page,
+  count(*) as pageviews,
+  count(distinct concat(cast(fullvisitorid as string), cast(visitId as string))) as unique_pageviews
+from
+  `midyear-calling-214820.21702316.ga_sessions_20240501` as sessions,
+  unnest(hits) as hits
+where
+  hits.type = 'PAGE'
+group by
+  page
+order by
+  unique_pageviews desc
