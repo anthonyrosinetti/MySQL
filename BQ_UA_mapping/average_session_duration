@@ -1,0 +1,9 @@
+select
+    -- channelGrouping,
+    round(sum(totals.timeOnSite)/count(distinct concat(fullvisitorid, '.', cast(visitStartTime as string))),0) as avgSessionDuration_sec
+from `midyear-calling-214820.21702316.ga_sessions_20240501`, unnest(hits) hits
+where
+    hits.isExit = True
+    and totals.visits = 1
+-- group by 1
+-- order by 2 desc
