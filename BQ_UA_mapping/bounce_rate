@@ -1,0 +1,35 @@
+WITH entrances_per_page AS (
+  SELECT
+  hits.page.pagePath AS page,
+  COUNT ( totals.visits ) AS total_entrances,
+  FROM `midyear-calling-214820.21702316.ga_sessions_20240501`, UNNEST(hits) hits
+  WHERE
+    hits.isEntrance = True
+  GROUP BY
+  hits.page.pagePath
+),
+bounces_per_page AS (
+  SELECT
+  hits.page.pagePath AS page,
+  COUNT ( totals.bounces ) AS total_no_of_bounces
+  FROM `midyear-calling-214820.21702316.ga_sessions_20240501`, UNNEST(hits) hits
+  WHERE
+    hits.type = 'PAGE'
+  GROUP BY
+  hits.page.pagePath
+),
+joined_sessions_bounces AS (
+  SELECT t1.page, t1.total_entrances, t2.total_no_of_bounces
+  FROM entrances_per_page t1
+  JOIN bounces_per_page t2 ON t1.page = t2.page
+)
+
+SELECT
+page,
+total_entrances,
+total_no_of_bounces,
+( ROUND(( total_no_of_bounces / total_entrances ) * 100,2) ) AS bounce_rate
+FROM
+joined_sessions_bounces
+ORDER BY
+total_entrances DESC
