@@ -1,0 +1,9 @@
+select
+  channelGrouping,
+  count(distinct clientId) as users
+from
+  `midyear-calling-214820.21702316.ga_sessions_20240501`
+group by
+  channelGrouping
+order by
+  users desc
