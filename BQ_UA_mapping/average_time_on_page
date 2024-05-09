@@ -1,0 +1,50 @@
+CREATE TEMP FUNCTION
+  timeHM(x FLOAT64)
+  RETURNS STRING
+  LANGUAGE js AS """
+    x = x/1000;
+    var hour = parseInt(x/60);
+    var minute = parseInt((x + 0.5)%60);
+  return hour + ":" + minute; """;
+
+WITH
+  totalTimeOnPageQuery AS (
+  SELECT
+    pagePath,
+    SUM(nextTime-time) AS totalTimeOnPage,
+    COUNTIF(type = "PAGE") AS pageviews,
+    COUNTIF(type= "PAGE"
+      AND isExit IS NULL) nonExitPageviews
+  FROM (
+    SELECT
+      *,
+      LAG(time, 1) OVER (PARTITION BY clientId, visitStartTime ORDER BY time DESC) AS nextTime
+    FROM (
+      SELECT
+        clientId,
+        visitStartTime,
+        hits.hitNumber,
+        hits.page.pagePath,
+        hits.type,
+        hits.isExit,
+        hits.time,
+        FIRST_VALUE(hits.time) OVER (PARTITION BY clientId, visitStartTime ORDER BY hits.time DESC) AS lastEventTime
+      FROM
+        `midyear-calling-214820.21702316.ga_sessions_20240501`,
+        UNNEST(hits) AS hits
+      WHERE
+        type="PAGE"
+        OR hits.isInteraction )
+    WHERE
+      type = "PAGE"
+      OR time=lastEventTime )
+  GROUP BY
+    1
+  ORDER BY
+    3 DESC)
+
+SELECT
+  pagePath,
+  timeHM(SAFE_DIVIDE(totalTimeOnPage, nonExitPageviews)) as avgTimeOnPage
+FROM
+  totalTimeOnPageQuery
