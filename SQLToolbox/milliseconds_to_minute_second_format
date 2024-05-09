@@ -1,0 +1,8 @@
+CREATE TEMP FUNCTION
+  timeHM(x FLOAT64)
+  RETURNS STRING
+  LANGUAGE js AS """
+    x = x/1000;
+    var hour = parseInt(x/60);
+    var minute = parseInt((x + 0.5)%60);
+  return hour + ":" + minute; """;
