@@ -1,0 +1,3 @@
+SELECT
+  PARSE_DATE("%Y-%m-%d", CONCAT(CAST(EXTRACT(YEAR FROM parse_date('%Y%m%d', date)) AS STRING), '-', LPAD(CAST(EXTRACT(MONTH FROM parse_date('%Y%m%d', date)) AS STRING), 2, '0'), '-01'))
+FROM `midyear-calling-214820.21702316.ga_sessions_20240501`
