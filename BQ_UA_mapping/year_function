@@ -1,0 +1,1 @@
+EXTRACT(YEAR FROM parse_date('%Y%m%d', date))
