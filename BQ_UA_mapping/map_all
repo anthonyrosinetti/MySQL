@@ -31,7 +31,7 @@ SELECT
   COUNT(CASE WHEN type = 'PAGE' THEN pagePath END) AS PageViews,
   sum(s_pageviews) as s_pageviews,
   SUM(CASE WHEN hitNumber = 1 THEN 1 ELSE 0 END) AS sessions,
- SUM(CASE WHEN total_events = 1 THEN 1 ELSE 0 END) AS bounces,
+  SUM(CASE WHEN total_events = 1 THEN 1 ELSE 0 END) AS bounces,
   SUM(Entrances) AS Entrances,
   SUM(Exits) AS Exits,
   sum(CASE WHEN hitNumber = 1 THEN total_time ELSE 0 END) AS Total_time,
@@ -76,8 +76,8 @@ FROM (
       totals.hits AS total_events,
       totals.pageviews AS s_pageviews,
       totals.bounces AS bounces,
-      CASE WHEN hits.isEntrance IS TRUE THEN 1 ELSE 0 END AS Entrances,
       CASE WHEN hits.isExit IS TRUE THEN 1 ELSE 0 END AS Exits,
+      CASE WHEN hits.isEntrance IS TRUE THEN 1 ELSE 0 END AS Entrances,
       totals.timeOnSite AS Total_time,
       totals.newVisits as new_visits
     FROM `midyear-calling-214820.21702316.ga_sessions_*`,
@@ -85,4 +85,3 @@ FROM (
     WHERE _TABLE_SUFFIX BETWEEN '20240401' AND '20240410'
 )
 GROUP BY fullVisitorId, visitId, sessionId, date, Year, Month, year_month,pagePath,Page_Title,eventAction, eventCategory, eventLabel,isexit
-
