@@ -1,0 +1,2 @@
+DELETE `my_dataset.my_table`
+WHERE int = xx #filter example
