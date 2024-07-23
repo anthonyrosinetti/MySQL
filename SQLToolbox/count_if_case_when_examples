@@ -1,0 +1,62 @@
+INSERT INTO `all-toyota.saar.sessions_bp_completions` (
+  month, 
+  global_sessions, 
+  global_b_p_completions, 
+  rav4_sessions, 
+  rav4_b_p_completions, 
+  cof_sessions, 
+  cof_b_p_completions, 
+  hig_sessions, 
+  hig_b_p_completions, 
+  ghig_sessions, 
+  ghig_b_p_completions, 
+  tp4_sessions, 
+  tp4_b_p_completions, 
+  cp4_sessions, 
+  cp4_b_p_completions, 
+  ccr_sessions, 
+  ccr_b_p_completions, 
+  bz4x_sessions, 
+  bz4x_b_p_completions
+)
+
+SELECT
+  202405 AS month,
+  count(distinct concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id'))) AS global_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%') as global_b_p_completions,
+  
+  count(distinct case when ((select value.string_value LIKE '%rav4%' from unnest(event_params) where key = 'page_location') and (select value.string_value NOT LIKE '%prime%' from unnest(event_params) where key = 'page_location')) then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as rav4_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%rav4%' and  (select value.string_value from unnest(event_params) where key = 'page_location') not like '%prime%') as rav4_b_p_completions,
+
+  count(distinct case when ((select value.string_value LIKE '%corolla%' from unnest(event_params) where key = 'page_location') and (select value.string_value NOT LIKE '%hatchback|im|cross|gr%' from unnest(event_params) where key = 'page_location')) then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as cof_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%corolla%' and (select value.string_value from unnest(event_params) where key = 'page_location') not like '%hatchback%|%im%|%cross%|%gr%') as cof_b_p_completions,
+
+  count(distinct case when ((select value.string_value LIKE '%highlander%' from unnest(event_params) where key = 'page_location') and (select value.string_value NOT LIKE '%grand-highlander%' from unnest(event_params) where key = 'page_location')) then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as hig_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%highlander%' and (select value.string_value from unnest(event_params) where key = 'page_location') not like '%grand-highlander%') as hig_b_p_completions,
+
+  count(distinct case when (select value.string_value LIKE '%grand-highlander%' from unnest(event_params) where key = 'page_location') then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as ghig_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%grand-highlander%') as ghig_b_p_completions,
+
+  count(distinct case when (select value.string_value LIKE '%tundra%' from unnest(event_params) where key = 'page_location') then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as tp4_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%tundra%') as tp4_b_p_completions,
+  
+  count(distinct case when (select value.string_value LIKE '%tacoma%' from unnest(event_params) where key = 'page_location') then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as cp4_sessions,
+  
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%tacoma%') as cp4_b_p_completions,
+
+  count(distinct case when (select value.string_value LIKE '%corolla-cross%' from unnest(event_params) where key = 'page_location') then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as ccr_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%corolla-cross%') as ccr_b_p_completions,
+
+  count(distinct case when (select value.string_value LIKE '%bz4x%' from unnest(event_params) where key = 'page_location') then concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) else null end) as bz4x_sessions,
+
+  countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%bz4x%') as bz4x_b_p_completions
+
+FROM
+  `all-toyota.analytics_276826791.events_202405*`
