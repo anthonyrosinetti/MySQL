@@ -21,7 +21,8 @@ INSERT INTO `all-toyota.saar.sessions_bp_completions` (
 )
 
 SELECT
-  202405 AS month,
+  CAST(CONCAT(CAST(EXTRACT(YEAR from DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH)) as string), LPAD(CAST(EXTRACT(MONTH from DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH)) as string),2,'0')) as int) as month,
+
   count(distinct concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id'))) AS global_sessions,
 
   countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%') as global_b_p_completions,
@@ -59,4 +60,5 @@ SELECT
   countif(event_name = 'page_view' and (select value.string_value from unnest(event_params) where key = 'page_location') LIKE '%build-price%summary%' and (select value.string_value from unnest(event_params) where key = 'page_location') like '%bz4x%') as bz4x_b_p_completions
 
 FROM
-  `all-toyota.analytics_276826791.events_202405*`
+  `all-toyota.analytics_276826791.events_*`
+  WHERE _TABLE_SUFFIX BETWEEN FORMAT_DATE('%Y%m%d', date_trunc(date_sub(current_date(), interval 1 month), month)) AND FORMAT_DATE('%Y%m%d', last_day(date_sub(current_date(), interval 1 month), month))
