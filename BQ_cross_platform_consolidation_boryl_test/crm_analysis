@@ -1,0 +1,126 @@
+create or replace view `boryl-hr.candidat_anthony.crm_analysis` as
+
+with
+
+------------------------------------------------------------------------------------------------------------------------
+-- REDUCING AND FILTERING lead_history TABLE ON new_value IN ('Lead Qualifié', 'Converti') AND CATCHING FIRST CHRONOLOGICAL new_value
+------------------------------------------------------------------------------------------------------------------------
+filtered_lead_history as (
+  select
+    id,
+    lead_id,
+    created_date as transition_date,
+    first_value(new_value ignore nulls) over (partition by lead_id, new_value order by created_date asc rows between unbounded preceding and unbounded following) as stage_name
+  from
+    `boryl-hr.salesforce.salesforce_lead_history`
+  where
+    field = 'Status'
+),
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- JOINING lead AND filtered_lead_history TABLES TO PUT TOGETHER ouvert_date, lead_qualifie_date AND proposition_en_cours_date IN THE SAME TABLE
+------------------------------------------------------------------------------------------------------------------------------------------------
+lead_steps as (
+  select
+    t1.id as lead_id,
+    utm_source__c as utm_source,
+    utm_medium__c as utm_medium,
+    utm_campaign__c as utm_campaign,
+    utm_content__c as utm_content,
+    landing_page__c as landing_page,
+    lead_source,
+    t1.created_date as ouvert_date,
+    min(case when t2.stage_name = 'Lead qualifié' or t2.stage_name = 'Converti' then t2.transition_date else null end) as lead_qualifie_date,
+    min(case when t2.stage_name = 'Converti' then t2.transition_date else null end) as proposition_en_cours_date
+  from
+    `boryl-hr.salesforce.salesforce_lead` t1
+    left join
+      filtered_lead_history t2
+        on
+          t1.id = t2.lead_id
+  group by
+    lead_id,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    landing_page,
+    lead_source,
+    ouvert_date
+),
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+-- REDUCING AND FILTERING opportunity_history TABLE ON stage_name IN ('Proposition commerciale envoyée', 'Close Won') AND CATCHING FIRST CHRONOLOGICAL stage_name
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+filtered_opportunities_history as (
+  select
+    opportunity_id as id,
+    created_date as transition_date,
+    first_value(stage_name ignore nulls) over (partition by opportunity_id, stage_name order by created_date asc rows between unbounded preceding and unbounded following) as stage_name,
+    case when stage_name = 'Close Won' then amount else null end as amount
+  from
+    `boryl-hr.salesforce.salesforce_opportunity_history`
+  where
+    stage_name in ('Proposition commerciale envoyée', 'Close Won')
+),
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- JOINING lead_steps (ouvert, lead_qualifié AND proposition_en_cours), salesforce_opportunity AND filtered_opportunities_history TABLES TO PUT TOGETHER ouvert_date, lead_qualifie_date, proposition_en_cours_date, proposition_envoyee_date, close_won_date AND amount IN THE SAME TABLE - using created_date (Lead Converti) ON 1st JOIN AND id (opportunity_id) ON 2nd JOIN
+------------------------------------------------------------------------------------------------------------------------------------------------
+joined_lead_steps_opportunities as (
+  select
+    t1.lead_id,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    landing_page,
+    lead_source,
+    ouvert_date,
+    lead_qualifie_date,
+    t1.proposition_en_cours_date,
+    t3.stage_name,
+    transition_date,
+    t3.amount
+  from
+    lead_steps t1
+      left join
+        `boryl-hr.salesforce.salesforce_opportunity` t2
+          on
+            t1.proposition_en_cours_date = t2.created_date
+      left join
+        filtered_opportunities_history t3
+          on
+            t2.id = t3.id
+)
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- TRANSFORMING LAST JOINT TABLE joined_lead_steps_opportunities TABLE TO PUT TOGETHER ouvert_date, lead_qualifie_date, proposition_en_cours_date, proposition_envoyee_date, close_won_date AND amount PER lead_id IN THE SAME TABLE
+------------------------------------------------------------------------------------------------------------------------------------------------
+select
+  lead_id,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_content,
+  landing_page,
+  lead_source,
+  ouvert_date,
+  lead_qualifie_date,
+  proposition_en_cours_date,
+  min(case when stage_name = 'Proposition commerciale envoyée' or stage_name = 'Close Won' then transition_date else null end) as proposition_envoyee_date,
+  min(case when stage_name = 'Close Won' then transition_date else null end) as close_won_date,
+  max(amount) as amount
+from
+  joined_lead_steps_opportunities
+group by
+  lead_id,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_content,
+  landing_page,
+  lead_source,
+  ouvert_date,
+  lead_qualifie_date,
+  proposition_en_cours_date
