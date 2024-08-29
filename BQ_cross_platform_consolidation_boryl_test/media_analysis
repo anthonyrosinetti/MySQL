@@ -1,0 +1,174 @@
+create or replace view `boryl-hr.candidat_anthony.media_analysis` as
+
+with
+
+--------------
+-- GOOGLE ADS
+--------------
+
+-----------------------------------------------
+-- REDUCING Campaign AND AdGroup OBJECTS DATA
+-----------------------------------------------
+google_ads_campaign as (
+  select
+    campaign_id,
+    campaign_advertising_channel_type as campaign_type,
+    last_value(campaign_name ignore nulls) over(partition by campaign_id order by _DATA_DATE asc rows between unbounded preceding and unbounded following) campaign_name,
+    _DATA_DATE as _date
+  from `boryl-hr.googleads_1112223333.ads_Campaign_1112223333`
+),
+
+google_ads_adgroup as (
+  select
+    ad_group_id,
+    campaign_id,
+    last_value(ad_group_name ignore nulls) over(partition by ad_group_id order by _DATA_DATE asc rows between unbounded preceding and unbounded following) ad_group_name,
+    _DATA_DATE as _date
+  from `boryl-hr.googleads_1112223333.ads_AdGroup_1112223333`
+),
+
+----------------------------------------------------------------------------
+-- CHOOSING AdGroupStats TABLE TO BE ABLE TO SKIP NULL ad_group_id VALUES
+----------------------------------------------------------------------------
+google_ads_ad_group_stats as (
+  select
+    ad_group_id,
+    campaign_id,
+    metrics_clicks as clicks,
+    ROUND(metrics_cost_micros/1000000, 4) as spend,
+    metrics_impressions as impressions,
+    _DATA_DATE as _date
+  from `boryl-hr.googleads_1112223333.ads_AdGroupStats_1112223333`
+),
+
+------------------------------------------------------------------------------------------
+-- JOINING Campaign, AdGroup AND AdGroupStats TABLES TO GET DATA SEGMENTED BY ad_group_id
+------------------------------------------------------------------------------------------
+google_ads_analysis as (
+  select
+    t1._date as date,
+    'Google Ads' as source,
+    campaign_type,
+    cast(t1.campaign_id as string) as campaign_id,
+    campaign_name,
+    cast(t1.ad_group_id as string) as ad_group_id,
+    ad_group_name,
+    clicks,
+    impressions,
+    spend
+  from
+    google_ads_ad_group_stats t1
+      join
+        google_ads_adgroup t2
+          on
+            t1.campaign_id = t2.campaign_id
+            and
+            t1.ad_group_id = t2.ad_group_id
+            and
+            t1._date = t2._date
+      join
+        google_ads_campaign t3
+          on
+            t1.campaign_id = t3.campaign_id
+            and
+            t1._date = t3._date
+),
+
+
+---------------
+-- LINKEDIN ADS
+---------------
+
+----------------------------------------------------------------------------------------------------
+-- REDUCING campaign_groups_details, campaigns_details OBJECTS DATA AND campaigns_stats STATS DATA
+----------------------------------------------------------------------------------------------------
+linkedin_campaign as (
+  select
+    date as _date,
+    campaign_group_id as campaign_id,
+    last_value(name ignore nulls) over(partition by campaign_group_id order by date asc rows between unbounded preceding and unbounded following) campaign_name
+  from `boryl-hr.linkedinads_44444444.linkedinads_campaign_groups_details`),
+
+linkedin_adgroup as (
+  select
+    date as _date,
+    campaign_group_id as campaign_id,
+    campaign_id as ad_group_id,
+    last_value(name ignore nulls) over(partition by campaign_id order by date asc rows between unbounded preceding and unbounded following) ad_group_name
+  from `boryl-hr.linkedinads_44444444.linkedinads_campaigns_details`),
+
+linkedin_stats as (
+  select
+    date as _date,
+    campaign_group_id as campaign_id,
+    campaign_id as ad_group_id,
+    clicks,
+    ROUND(cost_in_local_currency, 4) as spend,
+    impressions
+  from `boryl-hr.linkedinads_44444444.linkedinads_campaigns_stats`),
+
+
+----------------------------------------------------------------------------------------------------------------------
+-- JOINING campaign_groups_details, campaigns_details AND campaigns_stats TABLES TO GET DATA SEGMENTED BY campaign_id
+----------------------------------------------------------------------------------------------------------------------
+linkedin_ads_analysis as (
+  select
+    t1._date as date,
+    'Linkedin Ads' as source,
+    'SOCIAL' as campaign_type,
+    t1.campaign_id as campaign_id,
+    campaign_name,
+    t2.ad_group_id as ad_group_id,
+    ad_group_name,
+    clicks,
+    impressions,
+    spend   
+  from
+    linkedin_stats t1
+      join
+      linkedin_adgroup t2
+          on
+            t1.campaign_id = t2.campaign_id
+            and
+            t1._date = t2._date
+            and
+            t1.ad_group_id = t2.ad_group_id
+      join
+        linkedin_campaign t3
+          on
+            t1.campaign_id = t3.campaign_id
+            and
+            t1._date = t3._date
+)
+-- ),
+
+-----------------------------------
+-- GOOGLE ADS + LINKEDIN ADS UNION
+-----------------------------------
+select
+  date,
+  source,
+  campaign_type,
+  campaign_id,
+  campaign_name,
+  ad_group_id,
+  ad_group_name,
+  clicks,
+  impressions,
+  spend
+from
+  google_ads_analysis
+union all
+select
+  date,
+  source,
+  campaign_type,
+  campaign_id,
+  campaign_name,
+  ad_group_id,
+  ad_group_name,
+  clicks,
+  impressions,
+  spend
+from
+  linkedin_ads_analysis
