@@ -1,0 +1,35 @@
+----------------------------------------------
+-- UNNESTING ANALYTICS DATA FROM event_params
+----------------------------------------------
+with unnested_event_data as (
+  select
+    parse_date('%Y%m%d', event_date) as event_date,
+    timestamp_micros(event_timestamp) as event_timestamp,
+    concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) as session_id,
+    event_name,
+    (select value.string_value from unnest(event_params) where key = 'source') as source,
+    (select value.string_value from unnest(event_params) where key = 'medium') as medium,
+    (select value.string_value from unnest(event_params) where key = 'campaign') as campaign,
+    (select value.string_value from unnest(event_params) where key = 'content') as content,
+    (select value.string_value from unnest(event_params) where key = 'page_location') as page_location,
+    case when event_name = 'generate_lead' then 1 else 0 end as generate_lead
+from
+  `boryl-hr.googleanalytics_55555555.events_*`
+)
+
+
+-------------------------------------------------------------
+-- SESSIONS AND generate_lead EVENTS  COUNTS VALIDATION TEST
+-------------------------------------------------------------
+
+select
+  'unnested_analytics_table' as table_name, count(distinct session_id) as sessions_count, sum(generate_lead) as lead_generate_count
+  from 
+    unnested_event_data
+
+union all
+
+select
+  'source_analytics_table' as table_name, count(distinct concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id'))) as sessions_count, countif(event_name = 'generate_lead') as lead_generate_count
+  from
+    `boryl-hr.googleanalytics_55555555.events_*`
