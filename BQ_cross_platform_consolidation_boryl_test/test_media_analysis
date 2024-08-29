@@ -1,0 +1,368 @@
+----------------------------
+-- SOURCE VALIDATION TEST
+----------------------------
+
+with
+
+---------------------------------------------------------------------------------------
+-- COMPUTING TOTALS FOR GOOGLE FROM RESULTS TABLE - PERIOD '2024-06-10' to '2024-08-10'
+---------------------------------------------------------------------------------------
+media_analysis_google_ads_source_test as (
+  select
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    sum(spend) as spend_sum
+  from
+    `boryl-hr.candidat_anthony.media_analysis`
+  where
+    source = 'Google Ads'
+    and
+    date between '2024-06-10' and '2024-08-10'
+  group by
+    source
+  order by 3 desc
+),
+
+-----------------------------------------------------------------------------------------
+-- COMPUTING TOTALS FOR LINKEDIN FROM RESULTS TABLE - PERIOD '2024-06-10' to '2024-08-10'
+-----------------------------------------------------------------------------------------
+media_analysis_linkedin_ads_source_test as (
+  select
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    sum(spend) as spend_sum
+  from
+    `boryl-hr.candidat_anthony.media_analysis`
+  where
+    source = 'Linkedin Ads'
+    and
+    date between '2024-06-10' and '2024-08-10'
+  group by
+    source
+  order by 3 desc
+),
+
+----------------------------------------------------------------------------------------
+-- COMPUTING TOTALS FROM GOOGLE AdGroupStats TABLE TO BE ABLE TO SKIP null ad_group_id VALUES - PERIOD '2024-06-10' to '2024-08-10'
+----------------------------------------------------------------------------------------
+nominal_google_ads_source_test as (
+  select
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    (select campaign_id, metrics_clicks as clicks, ROUND(metrics_cost_micros/1000000,4) as spend, metrics_impressions as impressions, _DATA_DATE as _date
+    from `boryl-hr.googleads_1112223333.ads_AdGroupStats_1112223333`
+    where
+      _DATA_DATE between '2024-06-10' and '2024-08-10'
+      and
+      ad_group_id is not null) as google_ads_stats
+),
+
+---------------------------------------------------------------------------------------------
+-- COMPUTING TOTALS FROM LINKEDIN campaigns_stats TABLE - PERIOD '2024-06-10' to '2024-08-10'
+---------------------------------------------------------------------------------------------
+nominal_linkedin_ads_source_test as (
+  select
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    (select date as _date, campaign_group_id as campaign_id, campaign_id as ad_group_id, clicks, ROUND(cost_in_local_currency, 4) as spend, impressions
+    from `boryl-hr.linkedinads_44444444.linkedinads_campaigns_stats`
+    where
+      date between '2024-06-10' and '2024-08-10'
+      and
+      campaign_id is not null) as linkedin_stats
+)
+
+----------------------------------------------------------------------------
+-- PUTTING TOTALS TOGETHER IN A SINGLE TABLE TO VALIDATE RESULTS PER SOURCE
+----------------------------------------------------------------------------
+select
+    t1.impressions_sum as google_ads_impressions_sum,
+    n1.impressions_sum as nominal_google_ads_impressions_sum,
+    t1.clicks_sum as google_ads_clicks_sum,
+    n1.clicks_sum as nominal_google_ads_clicks_sum,
+    t1.spend_sum as google_ads_spend_sum,
+    n1.spend_sum as nominal_google_ads_spend_sum,
+    t2.impressions_sum as linkedin_ads_impressions_sum,
+    n2.impressions_sum as nominal_linkedin_ads_impressions_sum,
+    t2.clicks_sum as linkedin_ads_clicks_sum,
+    n2.clicks_sum as nominal_linkedin_ads_clicks_sum,
+    t2.spend_sum as linkedin_ads_spend_sum,
+    n2.spend_sum as nominal_linkedin_ads_spend_sum
+from
+  media_analysis_google_ads_source_test t1,
+  nominal_google_ads_source_test n1,
+  media_analysis_linkedin_ads_source_test t2,
+  nominal_linkedin_ads_source_test n2;
+
+
+
+
+
+----------------------------
+-- CAMPAIGN VALIDATION TEST
+----------------------------
+
+with
+
+-----------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER CAMPAIGN FROM RESULTS TABLE - PERIOD '2024-06-10' to '2024-08-10'
+-----------------------------------------------------------------------------------------
+media_analysis_campaign_test as (
+  select
+    campaign_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    `boryl-hr.candidat_anthony.media_analysis`
+  where
+    date between '2024-06-10' and '2024-08-10'
+  group by
+    campaign_name
+  order by 4 desc
+),
+
+-------------------------------------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER CAMPAIGN FROM GOOGLE Campaign AND AdGroupStats TABLES TO BE ABLE TO SKIP NULL ad_group_id VALUES - PERIOD '2024-06-10' to '2024-08-10'
+-------------------------------------------------------------------------------------------------------------------
+nominal_google_ads_campaign_test as (
+  select
+    campaign_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    (select
+      campaign_name, metrics_clicks as clicks, ROUND(metrics_cost_micros/1000000, 4) as spend, metrics_impressions as impressions, t1._DATA_DATE as _date
+    from
+      `boryl-hr.googleads_1112223333.ads_Campaign_1112223333` t1
+      join
+        `boryl-hr.googleads_1112223333.ads_AdGroupStats_1112223333` t2
+        on
+          t1.campaign_id = t2.campaign_id
+          and
+          t1._DATA_DATE = t2._DATA_DATE
+    where
+      t1._DATA_DATE between '2024-06-10' and '2024-08-10'
+      and
+      t2.ad_group_id is not null) as google_ads_campaign_stats 
+  group by
+    campaign_name
+  order by 4 desc
+),
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER CAMPAIGN FROM LINKEDIN campaign_groups_details AND campaigns_stats TABLES - PERIOD '2024-06-10' to '2024-08-10'
+--------------------------------------------------------------------------------------------------------------------------------
+nominal_linkedin_ads_campaign_test as (
+  select
+    campaign_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    sum(spend) as spend_sum
+  from
+    (select
+      t1.date as _date, name as campaign_name, clicks, ROUND(cost_in_local_currency, 4) as spend, impressions
+    from
+      `boryl-hr.linkedinads_44444444.linkedinads_campaign_groups_details` t1
+      join
+        `boryl-hr.linkedinads_44444444.linkedinads_campaigns_stats` t2
+        on
+          t1.campaign_group_id = t2.campaign_group_id
+          and
+          t1.date = t2.date
+    where
+      t1.date between '2024-06-10' and '2024-08-10'
+      and
+      campaign_id is not null) as linkedin_ads_campaign_stats
+  group by
+    campaign_name
+  order by 4 desc
+),
+
+-----------------------------------------------------------------------------------------
+-- SOURCE GOOGLE ADS TOTALS PER CAMPAIGN + SOURCE LINKEDIN ADS TOTALS PER CAMPAIGN UNION
+-----------------------------------------------------------------------------------------
+nominal_union_google_linkedin_ads_campaign_test as (
+  select
+    campaign_name,
+    clicks_sum,
+    impressions_sum,
+    spend_sum
+  from
+    nominal_google_ads_campaign_test
+  union all
+  select
+    campaign_name,
+    clicks_sum,
+    impressions_sum,
+    spend_sum
+  from
+    nominal_linkedin_ads_campaign_test
+  order by 4 desc
+),
+
+------------------------------------------------------------------------------------------------------------
+-- PUTTING RANKED LISTS OF TOTALS PER CAMPAIGN, TOGETHER IN A SINGLE TABLE TO VALIDATE RESULTS PER CAMPAIGN
+------------------------------------------------------------------------------------------------------------
+ordered_impressions_sum_media as (select campaign_name, impressions_sum, row_number() over (order by impressions_sum desc) as rank from media_analysis_campaign_test),
+ordered_clicks_sum_media as (select clicks_sum, row_number() over (order by clicks_sum desc) as rank from media_analysis_campaign_test),
+ordered_spend_sum_media as (select spend_sum, row_number() over (order by spend_sum desc) as rank from media_analysis_campaign_test),
+
+ordered_impressions_sum_nominal as (select impressions_sum, row_number() over (order by impressions_sum desc) as rank from nominal_union_google_linkedin_ads_campaign_test),
+ordered_clicks_sum_nominal as (select clicks_sum, row_number() over (order by clicks_sum desc) as rank from nominal_union_google_linkedin_ads_campaign_test),
+ordered_spend_sum_nominal as (select spend_sum, row_number() over (order by spend_sum desc) as rank from nominal_union_google_linkedin_ads_campaign_test)
+
+select
+    o1.campaign_name,
+    o1.impressions_sum as media_impressions_sum,
+    o2.impressions_sum as nominal_impressions_sum,
+    o3.clicks_sum as media_clicks_sum,
+    o4.clicks_sum as nominal_clicks_sum,
+    o5.spend_sum as media_spend_sum,
+    o6.spend_sum as nominal_spend_sum
+FROM
+    ordered_impressions_sum_media o1
+    JOIN ordered_impressions_sum_nominal o2 ON o1.rank =o2.rank
+    JOIN ordered_clicks_sum_media o3 ON o1.rank = o3.rank
+    JOIN ordered_clicks_sum_nominal o4 ON o1.rank = o4.rank
+    JOIN ordered_spend_sum_media o5 ON o1.rank = o5.rank
+    JOIN ordered_spend_sum_nominal o6 ON o1.rank = o6.rank;
+
+
+
+
+----------------------------
+-- AD GROUP VALIDATION TEST
+----------------------------
+
+with
+
+-----------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER AD GROUP FROM RESULTS TABLE - PERIOD '2024-06-10' to '2024-08-10'
+-----------------------------------------------------------------------------------------
+media_analysis_ad_group_test as (
+  select
+    ad_group_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    `boryl-hr.candidat_anthony.media_analysis`
+  where
+    date between '2024-06-10' and '2024-08-10'
+  group by
+    ad_group_name
+  order by 4 desc
+),
+
+-------------------------------------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER AD GROUP FROM GOOGLE AdGroup AND AdGroupStats TABLES - PERIOD '2024-06-10' to '2024-08-10'
+-------------------------------------------------------------------------------------------------------------------
+nominal_google_ads_ad_source_test as (
+  select
+    ad_group_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    (select
+      ad_group_name, metrics_clicks as clicks, ROUND(metrics_cost_micros/1000000, 4) as spend, metrics_impressions as impressions, t1._DATA_DATE as _date
+    from
+      `boryl-hr.googleads_1112223333.ads_AdGroup_1112223333` t1
+      join
+        `boryl-hr.googleads_1112223333.ads_AdGroupStats_1112223333` t2
+        on
+          t1.campaign_id = t2.campaign_id
+          and
+          t1.ad_group_id = t2.ad_group_id
+          and
+          t1._DATA_DATE = t2._DATA_DATE
+    where
+      t1._DATA_DATE between '2024-06-10' and '2024-08-10') as google_ads_ad_group_stats
+  group by
+    ad_group_name
+  order by 4 desc
+),
+
+-------------------------------------------------------------------------------------------------------------------
+-- COMPUTING TOTALS PER AD GROUP FROM LINKEDIN campaigns_details AND campaigns_stats TABLES - PERIOD '2024-06-10' to '2024-08-10'
+-------------------------------------------------------------------------------------------------------------------
+nominal_linkedin_ads_ad_source_test as (
+  select
+    ad_group_name,
+    sum(clicks) as clicks_sum,
+    sum(impressions) as impressions_sum,
+    ROUND(sum(spend), 4) as spend_sum
+  from
+    (select
+      t1.date as _date, name as ad_group_name, clicks, ROUND(cost_in_local_currency, 4) as spend, impressions
+    from
+      `boryl-hr.linkedinads_44444444.linkedinads_campaigns_details` t1
+      join
+        `boryl-hr.linkedinads_44444444.linkedinads_campaigns_stats` t2
+        on
+          t1.campaign_group_id = t2.campaign_group_id
+          and
+          t1.campaign_id = t2.campaign_id
+          and
+          t1.date = t2.date
+    where
+      t1.date between '2024-06-10' and '2024-08-10') as linkedin_ads_ad_group_stats
+  group by
+    ad_group_name
+  order by 4 desc
+),
+
+-----------------------------------------------------------------------------------------
+-- SOURCE GOOGLE ADS TOTALS PER AD GROUP + SOURCE LINKEDIN ADS TOTALS PER AD GROUP UNION
+-----------------------------------------------------------------------------------------
+nominal_union_google_linkedin_ads_ad_group_test as (
+  select
+    ad_group_name,
+    clicks_sum,
+    impressions_sum,
+    spend_sum
+  from
+    nominal_google_ads_ad_source_test
+  union all
+  select
+    ad_group_name,
+    clicks_sum,
+    impressions_sum,
+    spend_sum
+  from
+    nominal_linkedin_ads_ad_source_test
+  order by spend_sum desc
+),
+
+------------------------------------------------------------------------------------------------------------
+-- PUTTING RANKED LISTS OF TOTALS PER AD GROUP, TOGETHER IN A SINGLE TABLE TO VALIDATE RESULTS PER AD GROUP
+------------------------------------------------------------------------------------------------------------
+ordered_impressions_sum_media as (select ad_group_name, impressions_sum, row_number() over (order by impressions_sum desc) as rank from media_analysis_ad_group_test),
+ordered_clicks_sum_media as (select clicks_sum, row_number() over (order by clicks_sum desc) as rank from media_analysis_ad_group_test),
+ordered_spend_sum_media as (select spend_sum, row_number() over (order by spend_sum desc) as rank from media_analysis_ad_group_test),
+
+ordered_impressions_sum_nominal as (select impressions_sum, row_number() over (order by impressions_sum desc) as rank from nominal_union_google_linkedin_ads_ad_group_test),
+ordered_clicks_sum_nominal as (select clicks_sum, row_number() over (order by clicks_sum desc) as rank from nominal_union_google_linkedin_ads_ad_group_test),
+ordered_spend_sum_nominal as (select spend_sum, row_number() over (order by spend_sum desc) as rank from nominal_union_google_linkedin_ads_ad_group_test)
+
+select
+    o1.ad_group_name,
+    o1.impressions_sum as media_impressions_sum,
+    o2.impressions_sum as nominal_impressions_sum,
+    o3.clicks_sum as media_clicks_sum,
+    o4.clicks_sum as nominal_clicks_sum,
+    o5.spend_sum as media_spend_sum,
+    o6.spend_sum as nominal_spend_sum
+FROM
+    ordered_impressions_sum_media o1
+    JOIN ordered_impressions_sum_nominal o2 ON o1.rank =o2.rank
+    JOIN ordered_clicks_sum_media o3 ON o1.rank = o3.rank
+    JOIN ordered_clicks_sum_nominal o4 ON o1.rank = o4.rank
+    JOIN ordered_spend_sum_media o5 ON o1.rank = o5.rank
+    JOIN ordered_spend_sum_nominal o6 ON o1.rank = o6.rank;
