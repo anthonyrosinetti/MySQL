@@ -1,0 +1,148 @@
+create or replace view `boryl-hr.candidat_anthony.final_analysis` as
+
+with
+
+------------------------------
+-- PREPARING MEDIA DATA TABLE
+------------------------------
+processed_media_analysis as (
+  select
+    date,
+    'WEBSITE' as lead_source,
+    case when source = 'Google Ads' then 'google' when source = 'Linkedin Ads' then 'linkedin' end as utm_source,
+    case when source = 'Google Ads' and campaign_type = 'SEARCH' then 'cpc' when source ='Google Ads' and campaign_type = 'DISPLAY' then 'cpm' when source ='Linkedin Ads' then 'social' end as utm_medium,
+    campaign_name as utm_campaign,
+    ad_group_name as utm_content,
+    cast(null as string) as landing_page,
+    impressions,
+    clicks,
+    spend,
+    null as sessions_with_leads,
+    cast(null as datetime) as lead_qualifie_date,
+    cast(null as datetime) as proposition_en_cours_date,
+    cast(null as datetime) as proposition_envoyee_date,
+    cast(null as datetime) as close_won_date,
+    null as amount
+  from
+    `boryl-hr.candidat_anthony.media_analysis`
+),
+
+----------------------------------
+-- PREPARING ANALYTICS DATA TABLE
+----------------------------------
+processed_analytics_analysis as (
+  select
+    date,
+    'WEBSITE' as lead_source,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    landing_page,
+    null as impressions,
+    null as clicks,
+    null as spend,
+    sum(session_with_leads) as sessions_with_leads,
+    cast(null as datetime) as lead_qualifie_date,
+    cast(null as datetime) as proposition_en_cours_date,
+    cast(null as datetime) as proposition_envoyee_date,
+    cast(null as datetime) as close_won_date,
+    null as amount
+  from
+    `boryl-hr.candidat_anthony.analytics_analysis`
+  group by
+    date,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    landing_page
+),
+
+----------------------------
+-- PREPARING CRM DATA TABLE
+----------------------------
+processed_crm_analysis as (
+  select
+    ouvert_date as date,
+    lead_source,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    landing_page,
+    null as impressions,
+    null as clicks,
+    null as spend,
+    null as sessions_with_leads,
+    lead_qualifie_date,
+    proposition_en_cours_date,
+    proposition_envoyee_date,
+    close_won_date,
+    amount
+  from
+    `boryl-hr.candidat_anthony.crm_analysis`
+)
+
+------------------------------------------------
+-- CONCATENATING 3 TABLES INTO FINAL DATA TABLE
+------------------------------------------------
+select
+  date,
+  lead_source,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_content,
+  landing_page,
+  impressions,
+  clicks,
+  spend,
+  sessions_with_leads,
+  lead_qualifie_date,
+  proposition_en_cours_date,
+  proposition_envoyee_date,
+  close_won_date,
+  amount
+from 
+  processed_media_analysis m1
+union all
+select
+  date,
+  lead_source,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_content,
+  landing_page,
+  impressions,
+  clicks,
+  spend,
+  sessions_with_leads,
+  lead_qualifie_date,
+  proposition_en_cours_date,
+  proposition_envoyee_date,
+  close_won_date,
+  amount
+from 
+  processed_analytics_analysis a1
+union all
+select
+  date,
+  lead_source,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_content,
+  landing_page,
+  impressions,
+  clicks,
+  spend,
+  sessions_with_leads,
+  lead_qualifie_date,
+  proposition_en_cours_date,
+  proposition_envoyee_date,
+  close_won_date,
+  amount
+from 
+  processed_crm_analysis c1
