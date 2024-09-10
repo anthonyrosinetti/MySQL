@@ -1,0 +1,50 @@
+-- create or replace view `all-toyota.investigation.paid_google_misattribution` as
+
+with unnested_event_data as (
+  select
+    timestamp_micros(event_timestamp) as event_timestamp,
+    concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) as session_id,
+    user_pseudo_id,
+    (select value.string_value from unnest(event_params) where key = 'source') as source,
+    (select value.string_value from unnest(event_params) where key = 'medium') as medium,
+    (select value.string_value from unnest(event_params) where key = 'campaign') as campaign,
+    is_active_user
+  from
+    `all-toyota.analytics_276826791.events_*`
+  where
+    _table_suffix between '20240831' and '20240903'
+  group by
+    event_timestamp,
+    session_id,
+    user_pseudo_id,
+    source,
+    medium,
+    campaign,
+    is_active_user
+)
+
+select
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  count(distinct session_id) as sessions,
+  count(distinct case when is_active_user is true then user_pseudo_id end) as active_users
+from (
+  select
+  first_value(source ignore nulls) over (partition by session_id order by event_timestamp asc rows between unbounded preceding and unbounded following) as utm_source,
+  first_value(medium ignore nulls) over (partition by session_id order by event_timestamp asc rows between unbounded preceding and unbounded following) as utm_medium,
+  first_value(campaign ignore nulls) over (partition by session_id order by event_timestamp asc rows between unbounded preceding and unbounded following) as utm_campaign,
+  session_id,
+  user_pseudo_id,
+  is_active_user
+from
+  unnested_event_data
+)
+where
+  utm_campaign = 'FY25_AOProg_EN_TSC-COR-94_Banners'
+group by
+  utm_source,
+  utm_medium,
+  utm_campaign
+order by
+  sessions desc
