@@ -1,2 +1,5 @@
 DELETE `my_dataset.my_table`
 WHERE int = xx #filter example
+
+DELETE `saar.sessions_bp_completions`
+WHERE month = 202408 and global_sessions = 1882327
