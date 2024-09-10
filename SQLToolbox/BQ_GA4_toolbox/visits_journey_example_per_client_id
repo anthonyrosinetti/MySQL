@@ -1,0 +1,15 @@
+select
+  client_id,
+  timestamp_micros(min(event_timestamp)) as event_ts,
+  event_name,
+  (select value.string_value from unnest(event_params) where key = 'source' and value.string_value like 'ST-%') as utm_source,
+  (select value.string_value from unnest(event_params) where key = 'medium' and value.string_value in ('4runner','prius-prime','toyota-86','sequoia','supra','rav4-prime','venza','mirai','gr-corolla','venza-xle','tundra','rav4','sienna','corolla-hatchback','corolla','bz4x','camry','highlander','tacoma','prius','corolla-cross','crown')) as utm_medium,
+  (select value.string_value from unnest(event_params) where key = 'campaign') as utm_campaign,
+  (select value.int_value from unnest(event_params) where key = 'ga_session_number') as session_number,
+  count((select value.string_value from unnest(event_params) where key = 'page_title')) as user_pages_count,
+  string_agg(distinct (select value.string_value from unnest(event_params) where key = 'page_location' )) as distinct_pages,
+  string_agg((select value.string_value from unnest(event_params) where key = 'page_location' order by event_timestamp)) as page_journey,
+from
+  `all-toyota.sub_analytics_276826791.relevant_dims_20240401_04`
+group by 1, 3, 4, 5, 6, 7
+order by 1, 2
