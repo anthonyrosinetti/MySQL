@@ -1,0 +1,16 @@
+select
+  client_id,
+  timestamp_micros(event_timestamp) as session_start_ts,
+  cast(lead(timestamp_micros(event_timestamp),1) over (partition by concat(client_id) order by event_timestamp) as timestamp) as session_end_ts,
+  (select value.int_value from unnest(event_params) where key = 'ga_session_id') as session_id,
+  (select value.int_value from unnest(event_params) where key = 'ga_session_number') as session_number,
+  (select value.string_value from unnest(event_params) where key = 'source' and value.string_value like 'ST-%') as utm_source,
+  (select value.string_value from unnest(event_params) where key = 'medium' and value.string_value in ('4runner','prius-prime','toyota-86','sequoia','supra','rav4-prime','venza','mirai','gr-corolla','venza-xle','tundra','rav4','sienna','corolla-hatchback','corolla','bz4x','camry','highlander','tacoma','prius','corolla-cross','crown')) as utm_medium,
+  (select value.string_value from unnest(event_params) where key = 'campaign') as utm_campaign,
+  (select value.string_value from unnest(event_params) where key = 'page_location') as page_location,
+  (select value.string_value from unnest(event_params) where key = 'page_referrer') as page_referrer
+from
+  `all-toyota.sub_analytics_276826791.relevant_dims_20240401_09`
+where
+  event_name = 'session_start'
+order by 1, 2
