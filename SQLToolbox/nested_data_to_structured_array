@@ -1,0 +1,15 @@
+array(select as struct
+  h.hitNumber,
+  h.time,
+  h.isInteraction,
+  h.isEntrance,
+  h.isExit,
+  h.referer,
+  h.page.pagePath,
+  h.page.hostname,
+  h.page.pageTitle,
+  h.eventInfo.eventCategory,
+  h.eventInfo.eventAction,
+  h.eventInfo.eventLabel,
+  h.type
+from unnest(hits) as h) as unnested_array
