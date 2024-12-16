@@ -1,0 +1,9 @@
+select 
+    table_id as table_name,
+    datetime(timestamp_millis(last_modified_time)) as last_modified_date,
+from 
+    `big-query-328314.db_data`.__TABLES__
+where 
+    table_id = 'postgres_actions_raw_data'
+order by 2
+limit 10
