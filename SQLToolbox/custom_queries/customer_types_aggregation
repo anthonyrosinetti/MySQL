@@ -1,0 +1,41 @@
+with date_array as (
+  select
+    day as running_date
+  from
+  	unnest(generate_date_array(PARSE_DATE('%Y%m%d', @DS_START_DATE), PARSE_DATE('%Y%m%d', @DS_END_DATE))) AS day
+)
+, layer1 as (
+  select
+    running_date,
+    customer_id,
+  	store,
+    array_agg(distinct case when date = running_date then country else null end ignore nulls) as countries,
+    array_agg(distinct case when date = running_date then surtype else null end ignore nulls) as surtypes,
+    array_agg(distinct case when date = running_date then type else null end ignore nulls) as types,
+    array_agg(distinct case when date = running_date then manufacturer else null end ignore nulls) as fabricants,
+    array_agg(distinct case when date = running_date then brand else null end ignore nulls) as marques,  
+    count(distinct case when date < running_date then order_id else null end) as running_total_order_count,
+    min(case when date < running_date then date else null end) as first_order_date,
+    count(distinct case when date = running_date then order_id else null end) as running_order_count,
+    sum(case when date = running_date then item_total_revenue else 0 end) as running_total_revenue,
+    sum(case when date = running_date then item_total_quantity else 0 end) as running_total_quantity
+  from
+    `reporting-boryl-lcda.analysis.analysis_orders`,
+    date_array
+  group by
+    1,2,3
+)
+select
+  running_date,
+  customer_id,
+  store,
+  countries,
+  surtypes,
+  types,
+  fabricants,
+  marques,
+  case when running_total_order_count <= @seuil_commandes_nouvel_acheteur and first_order_date > date_sub(running_date, interval @recence_maximale_premier_achat month) then 'Nouvel Acheteur' else 'Ancien Acheteur' end as customer_type,
+  running_order_count,
+  running_total_revenue,
+  running_total_quantity
+from layer1
