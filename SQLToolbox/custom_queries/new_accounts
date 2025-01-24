@@ -1,0 +1,61 @@
+with customers_creations as (
+    select
+        date(created_at) as customer_created_date,
+        id as customer_id,
+        case when store_id = 1 then 'LCDA' when store_id = 15 then 'Dogtore IT' end as store
+    from
+        `reporting-boryl-lcda.magento.raw_magento_customers`
+    where
+        store_id in (1, 15)
+),
+current_accounts as (
+    select
+        date,
+        c.store,
+        count(distinct c.customer_id) as current_accounts_created
+    from
+        unnest(
+            generate_date_array(
+                PARSE_DATE("%Y%m%d", @DS_START_DATE),
+                PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            )
+        ) date
+        left join customers_creations c
+  		on c.customer_created_date = date
+    group by
+        date,
+        store
+),
+previous_accounts as (
+    select
+        date,
+        p.store,
+        count(distinct p.customer_id) as previous_accounts_created
+    from
+        unnest(
+            generate_date_array(
+                PARSE_DATE("%Y%m%d", @DS_START_DATE),
+                PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            )
+        ) date
+        left join customers_creations p
+  		on p.customer_created_date = DATE_SUB(
+            date,
+            INTERVAL DATE_DIFF(
+                PARSE_DATE('%Y%m%d', @DS_END_DATE),
+                PARSE_DATE('%Y%m%d', @DS_START_DATE),
+                DAY
+            ) + 1 DAY
+        )
+    group by
+        date,
+        store
+)
+select
+    date,
+    store,
+    current_accounts_created,
+    previous_accounts_created
+from
+    current_accounts c
+    left join previous_accounts using (date, store)
