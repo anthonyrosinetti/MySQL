@@ -1,0 +1,141 @@
+select
+    *,
+    "current" as date_range,
+    date_diff(date,
+      case @plage_de_temps
+      when 'M' then date_trunc(current_date(),month)
+      when 'M - 1' then date_trunc(date_sub(current_date(),interval 1 month),month)
+      when 'YTD' then date_trunc(current_date(),year)
+      when 'L12M' then date_trunc(date_sub(current_date(),interval 12 month),month)
+      end, day) +1 as row_number
+from
+    `reporting-boryl-lcda.analysis.analysis_orders`
+where
+    true
+	and (
+      (
+        	@plage_de_temps = 'M' and date between date_trunc(current_date(),month) and date_sub(current_date(), interval 1 day)
+        )
+      or
+      (
+        	@plage_de_temps = 'M - 1' and date between date_trunc(date_sub(current_date(),interval 1 month),month) and date_sub(date_trunc(current_date(),month),interval 1 day)
+        )
+      or
+      (
+        	@plage_de_temps = 'YTD' and date between date_trunc(current_date(),year) and date_sub(current_date(), interval 1 day)
+        )
+      or
+      (
+        	@plage_de_temps = 'L12M' and date between date_trunc(date_sub(current_date(),interval 12 month),month) and date_sub(date_trunc(current_date(),month),interval 1 day)
+        )
+      )
+union all
+select
+    *,
+    "compared" as date_range,
+    date_diff(
+        date,
+        case @plage_de_comparaison
+        when 'P - 1' then
+            case @plage_de_temps
+                when 'M' then date_sub(date_trunc(current_date(), month),
+                    INTERVAL date_diff(
+                        current_date(),
+                        date_trunc(current_date(), month),
+                        DAY
+                    ) + 1 DAY)
+                when 'M - 1' then date_trunc(date_sub(current_date(),interval 2 month),month)
+                when 'YTD' then date_sub(date_trunc(current_date(), year),
+                    INTERVAL date_diff(
+                        current_date(),
+                        date_trunc(current_date(), year),
+                        DAY
+                    ) + 1 DAY)
+                when 'L12M' then date_trunc(date_sub(current_date(),interval 24 month),month)
+            end
+        when 'N - 1' then
+            case @plage_de_temps
+                when 'M' then date_trunc(date_sub(current_date(), interval 1 year), month)
+                when 'M - 1' then date_trunc(date_sub(current_date(), interval 13 month), month)
+                when 'YTD' then date_trunc(date_sub(current_date(), interval 1 year), year)
+                when 'L12M' then date_trunc(date_sub(current_date(),interval 2 year),month)
+            end
+        end,
+        DAY
+    ) + 1 as row_number
+from
+    `reporting-boryl-lcda.analysis.analysis_orders`
+where
+    true
+    and (
+        (
+            @plage_de_comparaison = 'P - 1'
+            and @plage_de_temps = 'M'
+            and date between date_sub(date_trunc(current_date(), month),
+                    INTERVAL date_diff(
+                        current_date(),
+                        date_trunc(current_date(), month),
+                        DAY
+                    ) + 1 DAY)
+            and date_sub(date_trunc(current_date(), month),
+                    INTERVAL 1 DAY)
+        )
+        or 
+        (
+            @plage_de_comparaison = 'P - 1'
+            and @plage_de_temps = 'M - 1'
+            and date between date_trunc(date_sub(current_date(),interval 2 month),month)
+            and date_sub(date_sub(date_trunc(current_date(), month),
+                    INTERVAL 1 DAY), INTERVAL 1 MONTH)
+        )
+        or
+        (
+            @plage_de_comparaison = 'P - 1'
+            and @plage_de_temps = 'YTD'
+            and date between date_sub(date_trunc(current_date(), year),
+                    INTERVAL date_diff(
+                        current_date(),
+                        date_trunc(current_date(), year),
+                        DAY
+                    ) + 1 DAY)
+            and date_sub(
+                date_trunc(current_date(), year),
+                INTERVAL 1 DAY
+            )
+        )
+        or
+        (
+            @plage_de_comparaison = 'P - 1'
+            and @plage_de_temps = 'L12M'
+            and date between date_trunc(date_sub(current_date(),interval 24 month),month)
+            and date_sub(date_trunc(date_sub(current_date(),interval 12 month),month), interval 1 day)
+        )
+        or
+        (
+            @plage_de_comparaison = 'N - 1'
+            and @plage_de_temps = 'M'
+            and date between date_trunc(date_sub(current_date(), interval 1 year), month)
+            and date_sub(date_sub(current_date(),interval 1 day), interval 1 year)
+        )
+        or
+        (
+            @plage_de_comparaison = 'N - 1'
+            and @plage_de_temps = 'M - 1'
+            and date between date_trunc(date_sub(current_date(), interval 13 month), month)
+            and date_sub(date_trunc(date_sub(current_date(), interval 12 month), month), interval 1 day)
+        )
+        or
+        (
+            @plage_de_comparaison = 'N - 1'
+            and @plage_de_temps = 'YTD'
+            and date between date_trunc(date_sub(current_date(), interval 1 year), year)
+            and date_sub(date_sub(current_date(), interval 1 day), interval 1 year)
+        )
+        or
+        (
+            @plage_de_comparaison = 'N - 1'
+            and @plage_de_temps = 'L12M'
+            and date between date_trunc(date_sub(current_date(),interval 2 year),month)
+            and date_sub(date_trunc(date_sub(current_date(), interval 12 month), month), interval 1 day)
+        )
+    )
