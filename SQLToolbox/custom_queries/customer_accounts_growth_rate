@@ -1,0 +1,59 @@
+with customers_creations as (
+    select
+        date(created_at) as customer_created_date,
+        id as customer_id,
+        case when store_id = 1 then 'LCDA' when store_id = 15 then 'Dogtore IT' end as store
+    from
+        `reporting-boryl-lcda.magento.raw_magento_customers`
+    where
+        store_id in (1, 15)
+),
+current_accounts as (
+    select
+        store,
+        count(distinct customer_id) as current_accounts_created
+    from
+        customers_creations
+    where
+        customer_created_date between parse_date('%Y%m%d', @DS_START_DATE)
+        and parse_date('%Y%m%d', @DS_END_DATE)
+    group by
+        store
+),
+comparison_window_accounts as (
+    select
+        store,
+        count(distinct customer_id) as comparison_window_accounts_created
+    from
+        customers_creations
+    where
+        customer_created_date between date_sub(
+            parse_date('%Y%m%d', @DS_START_DATE),
+            interval @comparison_window * 30 DAY
+        )
+        and date_sub(
+            parse_date('%Y%m%d', @DS_START_DATE),
+            interval 1 DAY
+        )
+    group by
+        store
+)
+select
+    store,
+    @comparison_window * 30 * current_accounts_created as adjusted_current_accounts_created,
+    cast(null as int64) as adjusted_comparison_window_accounts_created
+from
+    current_accounts
+
+union all
+
+select
+    store,
+    cast(null as int64) as adjusted_current_accounts_created,
+    date_diff(
+            parse_date('%Y%m%d', @DS_END_DATE),
+            parse_date('%Y%m%d', @DS_START_DATE),
+            DAY
+        ) * comparison_window_accounts_created as adjusted_comparison_window_accounts_created
+from
+    comparison_window_accounts
