@@ -1,0 +1,38 @@
+with layer1 as (
+    select
+        customer_id,
+        store,
+        date as order_date
+    from
+        `reporting-boryl-lcda.analysis.analysis_orders`
+),
+last_order_dates as (
+    select
+        date,
+        store,
+        customer_id,
+        max(order_date) as last_order_date
+    from
+        unnest(
+            generate_date_array(
+                PARSE_DATE("%Y%m%d", @DS_START_DATE),
+                PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            )
+        ) date
+        left join layer1 on order_date < date
+    group by
+        date,
+        store,
+        customer_id
+)
+select
+    date,
+    store,
+    count(
+        distinct case when last_order_date < date_sub(date, interval @plage_de_non_retention month) then customer_id else null end
+    ) as customer_wo_retention
+from
+    last_order_dates
+group by
+    date,
+    store
