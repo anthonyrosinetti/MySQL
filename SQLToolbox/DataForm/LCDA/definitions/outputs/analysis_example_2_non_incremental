@@ -1,0 +1,128 @@
+-- Config block
+config {
+  type: "table"
+}
+
+-- SQL
+with reduced_products as (
+    select
+        id as product_id,
+        sku as product_sku,
+        name as product_name,
+        type_id as simple_or_bundle,
+        date(created_at) as date,
+        date(updated_at) as updated_date,
+        price,
+        case when status = 1
+        and visibility in (2, 3, 4) then true else false end as is_product_active,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'colisage'
+        ) as colisage,        
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'surtype_produit'
+        ) as surtype_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'type_produit'
+        ) as type_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'manufacturer'
+        ) as manufacturer_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'brand'
+        ) as brand_id,
+        string_agg(distinct cast(wi as string)) as website_ids,
+    from
+        ${ref("raw_magento_products")},
+        unnest(extension_attributes.website_ids) wi
+    group by
+      product_id,product_sku,product_name,simple_or_bundle,date,updated_date,price,is_product_active,colisage,surtype_id,type_id,manufacturer_id,brand_id
+)
+  select
+      date,
+      updated_date,
+      product_id,
+      product_sku,
+      product_name,        
+      simple_or_bundle,
+      price,
+      is_product_active,
+      cast(case when colisage = '0' then '1' else colisage end as int64) as colisage,
+      surtype.label as surtype,
+      type.label as type,
+      manu.label as manufacturer,
+      brand.label as brand,
+      website_ids,
+      max(is_product_active) over (partition by brand.label) as is_brand_active
+  from
+      reduced_products r
+      left join (
+          select
+              o.label,
+              o.value
+          from
+              ${ref("raw_magento_product_attributes")},
+              unnest(options) as o
+          where
+              attribute_code = 'surtype_produit'
+      ) surtype on r.surtype_id = surtype.value
+      left join (
+          select
+              o.label,
+              o.value
+          from
+              ${ref("raw_magento_product_attributes")},
+              unnest(options) as o
+          where
+              attribute_code = 'type_produit'
+      ) type on r.type_id = type.value
+      left join (
+          select
+              o.label,
+              o.value
+          from
+              ${ref("raw_magento_product_attributes")},
+              unnest(options) as o
+          where
+              attribute_code = 'manufacturer'
+      ) manu on r.manufacturer_id = manu.value
+      left join (
+          select
+              o.label,
+              o.value
+          from
+              ${ref("raw_magento_product_attributes")},
+              unnest(options) as o
+          where
+              attribute_code = 'brand'
+      ) brand on r.brand_id = brand.value
+  where
+      website_ids like '%1%'
+      or
+      website_ids like '%4%'
+  group by
+      product_id,product_sku,product_name,simple_or_bundle,date,updated_date,price,is_product_active,colisage,surtype,type,manufacturer,brand,website_ids
