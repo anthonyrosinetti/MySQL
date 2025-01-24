@@ -1,0 +1,22 @@
+	select
+	    o.date,
+  		o.product_sku,
+		p.product_name,
+			-- last_value(p.product_name) over (partition by o.product_sku order by p.updated_date asc) as product_name,
+  		-- last_value(p.is_product_active) over (partition by o.product_sku order by p.updated_date asc) as is_product_active,	
+		o.surtype,
+     	o.type,
+    	cast(sum(o.item_total_quantity) as int64) as unites_vendues,
+		cast(avg(o.item_margin) as float64) as margin,
+		cast(avg(o.colisage) as int64) as colisage
+  	from
+        `reporting-boryl-lcda.analysis.analysis_orders` o
+		left join
+         	`reporting-boryl-lcda.analysis.analysis_products` p
+            	using (product_sku)
+    where
+        o.date between date_trunc(date_sub(CURRENT_DATE(), INTERVAL @duree_de_rotation MONTH),month) and date_sub(date_trunc(current_date(),month), interval 1 day)
+		and
+		p.is_product_active
+	group by
+		o.date,product_sku,product_name,surtype,type
