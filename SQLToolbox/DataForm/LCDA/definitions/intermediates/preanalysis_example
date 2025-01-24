@@ -1,0 +1,22 @@
+-- Config block
+config {
+  type: "table"
+}
+
+-- SQL
+select
+    date(c.created_at) as date,
+    date(c.updated_at) as updated_date,
+    cast(c.id as string) as customer_id,
+    co.country_fr_name as country,
+    a.region.region,
+    a.city,
+    a.telephone
+from
+    ${ref("raw_magento_customers")} c,
+    unnest(addresses) a
+    left join ${ref("country_list")} co on a.country_id = co.iso2
+where
+    a.default_shipping = true
+    and
+    c.store_id in (1,15)
