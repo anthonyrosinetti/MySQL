@@ -1,0 +1,43 @@
+with layer1 as (
+	select
+		date,
+		split(species,',') as species_split,
+		store,
+  		surtype,
+  		type,
+  		manufacturer,
+  		brand,
+  		order_id,
+  		item_total_revenue,
+  		item_total_quantity
+	from
+		`reporting-boryl-lcda.analysis.analysis_orders`
+  	where
+  		date(date) between parse_date("%Y%m%d", @DS_START_DATE) and parse_date("%Y%m%d", @DS_END_DATE)
+),
+
+layer2 as (
+  select
+      date,
+  	  store,
+      surtype,
+	  type,
+	  manufacturer,
+	  brand,  
+      unique_specie,
+      count(distinct order_id) as orders_count,
+      sum(item_total_revenue) as ca,
+      sum(item_total_quantity) as sold_units
+  from
+      layer1,
+      unnest(species_split) as unique_specie
+  group by
+      date,store,surtype,type,manufacturer,brand,unique_specie
+)
+
+select
+	*
+from
+	layer2
+where
+	unique_specie in unnest(@species)
