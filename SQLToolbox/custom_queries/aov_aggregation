@@ -1,0 +1,24 @@
+with layer1 as (
+  select
+	order_id,
+	date,
+    store,
+    surtype,
+    manufacturer,
+    sum(item_total_revenue) over (partition by order_id) as total_revenue
+  from
+    `reporting-boryl-lcda.analysis.analysis_orders`
+  where
+	date BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+)
+select
+    distinct order_id,
+	date,
+    store,
+    array_agg(distinct surtype) as surtype,
+    array_agg(distinct manufacturer) as manufacturer,
+    max(total_revenue) as total_revenue
+from
+	layer1
+group by
+	order_id,date,store
