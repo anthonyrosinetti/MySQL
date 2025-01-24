@@ -1,0 +1,36 @@
+with layer1 as (
+	select
+		date,
+		split(attributs_sante,',') as attributs_sante_split,
+		order_id,
+		store,
+  		surtype,
+  		item_total_revenue,
+  		item_total_quantity
+	from
+		`reporting-boryl-lcda.analysis.analysis_orders`
+  	where
+  		date(date) between parse_date("%Y%m%d", @DS_START_DATE) and parse_date("%Y%m%d", @DS_END_DATE)
+),
+
+layer2 as (
+  select
+    unique_attributs_sante,
+    store,
+    surtype,
+    count(distinct order_id) as orders_count,
+    sum(item_total_revenue) as ca,
+    sum(item_total_quantity) as sold_units
+  from
+    layer1,
+    unnest(attributs_sante_split) as unique_attributs_sante
+  group by
+    1,2,3
+)
+
+select
+	*	 
+from
+	layer2
+where
+	unique_attributs_sante in unnest(@health_attributes)
