@@ -1,0 +1,79 @@
+with current_time_range_customer_scope as (
+    select
+  		customer_id,
+        array_agg(distinct brand ignore nulls) as brand,
+        array_agg(distinct manufacturer ignore nulls) as manufacturer,
+        array_agg(distinct product_sku ignore nulls) as product_sku,
+        array_agg(distinct store ignore nulls) as store,
+        count(distinct order_id) as orders_count
+    from
+        `reporting-boryl-lcda.analysis.analysis_orders`
+    where
+        date between PARSE_DATE('%Y%m%d', @DS_START_DATE)
+        and PARSE_DATE('%Y%m%d', @DS_END_DATE)
+    group by
+        customer_id
+),
+current_time_range_orders_count_scope as (
+    select
+        distinct orders_count,
+        ARRAY_CONCAT_AGG(brand) AS brand,
+		ARRAY_CONCAT_AGG(manufacturer) AS manufacturer,
+		ARRAY_CONCAT_AGG(product_sku) AS product_sku,
+		ARRAY_CONCAT_AGG(store) AS store,
+        count(distinct customer_id) as customers_count
+    from
+        current_time_range_customer_scope
+    group by
+        orders_count
+),
+previous_time_range_customer_scope as (
+    select
+  		customer_id,
+        array_agg(distinct brand ignore nulls) as brand,
+        array_agg(distinct manufacturer ignore nulls) as manufacturer,
+        array_agg(distinct product_sku ignore nulls) as product_sku,
+        array_agg(distinct store ignore nulls) as store,
+        count(distinct order_id) as orders_count
+    from
+        `reporting-boryl-lcda.analysis.analysis_orders`
+    where
+        date between DATE_SUB(
+            PARSE_DATE('%Y%m%d', @DS_START_DATE),
+            INTERVAL DATE_DIFF(
+                PARSE_DATE('%Y%m%d', @DS_END_DATE),
+                PARSE_DATE('%Y%m%d', @DS_START_DATE),
+                DAY
+            ) + 1 DAY
+        )
+        and DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE),
+                INTERVAL 1 DAY)
+    group by
+        customer_id
+),
+previous_time_range_orders_count_scope as (
+    select
+        distinct orders_count,
+        ARRAY_CONCAT_AGG(brand) AS brand,
+		ARRAY_CONCAT_AGG(manufacturer) AS manufacturer,
+		ARRAY_CONCAT_AGG(product_sku) AS product_sku,
+		ARRAY_CONCAT_AGG(store) AS store,
+        count(distinct customer_id) as customers_count
+    from
+        previous_time_range_customer_scope
+    group by
+        orders_count
+)
+select
+    orders_count,
+    c.brand,
+    c.manufacturer,
+    c.product_sku,
+    c.store,
+    c.customers_count as current_customers_count,
+    p.customers_count as previous_customers_count
+from
+    current_time_range_orders_count_scope c
+    left join previous_time_range_orders_count_scope p using (
+        orders_count
+    )
