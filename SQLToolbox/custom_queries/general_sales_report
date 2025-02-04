@@ -1,19 +1,19 @@
 with layer1 as (
     select
         o.date,
-        split(o.species, ',') as species_split,
+        split(o.species,',') as species_split,
         o.store,
         o.surtype,
         o.type,
         o.manufacturer,
         o.brand,
         o.product_sku,
-		last_value(p.product_name) over (partition by o.product_sku order by p.updated_date asc) as product_name,
-		split(o.suppliers, ',') as suppliers_split,
+        last_value(p.product_name) over (partition by o.product_sku order by p.updated_date asc) as product_name,               
+        split(o.suppliers,',') as suppliers_split,
         o.item_total_revenue,
         o.item_total_quantity,
 		o.item_margin,
-        o.order_id,
+        o.order_id
     from
         `reporting-boryl-lcda.analysis.analysis_orders` o
   		left join
@@ -22,45 +22,41 @@ with layer1 as (
     where
         date(o.date) between parse_date("%Y%m%d", @DS_START_DATE) and parse_date("%Y%m%d", @DS_END_DATE)
 )
-, layer2 as (
-    select
-        date,
-        unique_specie,
-        store,
-        surtype,
-        type,
-        manufacturer,
-        brand,
-        product_sku,
-		product_name,
-        unique_supplier,
-        item_total_revenue,
-        item_total_quantity,
-	    item_margin,
-        order_id
-    from
-        layer1,
-        unnest(species_split) as unique_specie,
-        unnest(suppliers_split) as unique_supplier
-    where
-        unique_specie in unnest(@species)
-        and unique_supplier in unnest(@suppliers)
-)
+, layer2 AS (
 select
     date,
-    string_agg(distinct unique_specie, ',' order by unique_specie asc) as specie,
+    ARRAY_CONCAT_AGG(species_split) as specie,
+    store,
     surtype,
     type,
     manufacturer,
     brand,
     product_sku,
     product_name,
-    string_agg(distinct unique_supplier, ',' order by unique_supplier asc) as supplier,
+    ARRAY_CONCAT_AGG(suppliers_split) as supplier,
     count(distinct order_id) as orders_count,
     sum(item_total_revenue) as item_total_revenue,
     sum(item_total_quantity) as item_total_quantity,
 	avg(item_margin) as item_margin
 from
-    layer2
+    layer1
 group by
-    date, surtype, type, manufacturer, brand, product_sku, product_name
+    date,store,surtype,type,manufacturer,brand,product_sku,product_name
+)
+SELECT
+    date,
+    ARRAY_TO_STRING(ARRAY(select distinct value from unnest(specie) as value),',') as specie,
+    store,
+    surtype,
+    type,
+    manufacturer,
+    brand,
+    product_sku,
+    product_name,
+    ARRAY_TO_STRING(ARRAY(select distinct value from unnest(supplier) as value),',') as supplier,
+    orders_count,
+    item_total_revenue,
+    item_total_quantity,
+	item_margin
+from
+    layer2
