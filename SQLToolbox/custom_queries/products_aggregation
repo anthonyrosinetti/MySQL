@@ -1,6 +1,5 @@
-with layer1 as (
 	select
-		split(website_ids,',') as website_ids_split,
+		split(case when (website_ids like '%1%' and website_ids like '%4%') then 'LCDA,Dogtore IT' when website_ids like '%1%' then 'LCDA' when website_ids like '%4%' then 'Dogtore IT' else '' end,',') as store,
   		product_id,
 		product_sku,
   		product_name,
@@ -12,28 +11,3 @@ with layer1 as (
   		is_brand_active
   	from
 		`reporting-boryl-lcda.analysis.analysis_products`
-),
-
-layer2 as (
-  select
-      product_id,
-      product_sku,
-      product_name,
-      is_product_active,
-      surtype,
-      type,
-      manufacturer,
-      brand,
- 	  is_brand_active,
-      unique_website_id
-  from
-      layer1,
-      unnest(website_ids_split) as unique_website_id
-)
-
-select
-	*
-from
-	layer2
-where
-	unique_website_id in unnest(@unique_website_ids)
