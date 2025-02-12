@@ -1,0 +1,20 @@
+with layer1 as (
+  select *, 1 as row_count
+from
+  `big-query-328314.analysis_data.sales_pr_history_kpis_copy` 
+where
+  date = DATE(2025,2,10)
+
+union all
+
+select *, -1 as row_count
+from
+  `big-query-328314.analysis_data.sales_pr_history_kpis` 
+  FOR SYSTEM_TIME AS OF TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 12 HOUR)
+where
+  date = DATE(2025,2,10)
+)
+select
+  * except (row_count,owner_is_in_negotiation,owner_action_due_number), sum(row_count) AS row_count FROM layer1 group by date, main_availability_id, availability_id, availability_entry_date, owner_id, owner_has_flag_bypass, owner_has_flag_ambassadeur, owner_has_flag_midtoppr, owner_has_flag_toppr, owner_has_flag_kyc, owner_has_flag_onboarding, owner_has_flag_commercialisation60j, owner_last_login_date, owner_is_last_login_more_10_days, account_executive_id, account_executive, request_id, is_request_won, revenues, guarantee_margin, is_request_created, is_request_active, is_request_active_inprint, is_request_owner_proposition_created, is_request_active_proposition, mobility_id, is_mobility_won
+  having row_count != 0 and account_executive_id = 2871
+  order by owner_id, row_count
