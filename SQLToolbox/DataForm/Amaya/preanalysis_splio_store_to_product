@@ -1,0 +1,62 @@
+-- Config block
+config {
+  type: "table",
+  schema: "analysis"
+}
+
+select
+  date(o.created_at) as order_created_date,
+  o.external_id as order_id,
+  o.status as order_status,
+  ifnull(total_price,0)-ifnull(o.discount_amount,0) as ca_ttc,
+  case
+    when o.store.name = 'Boutique en ligne' then 'Boutique - ECommerce'
+    when o.store.name like '%GL%' then null
+    else o.store.name
+  end as store, 
+  cast(s.geo_cluster as string) as store_geo_cluster,
+  cast(s.ca_cluster as string) as store_ca_cluster,  
+  cast(contact.id as string) as customer_id,
+  sc.email as customer_email,
+  sc.cellphone as customer_phone,
+  date(sc.creation_date) as customer_created_date,
+  ifnull(sc.cf1_optin_email,0) as customer_opt_in_email,
+  ifnull(sc.cf2_optin_phone,0) as customer_opt_in_phone,
+  sc.cf5_address_1_postcode as customer_postcode,
+  case
+    when sc.cf15_birthdate like '%-%-%' then cast(sc.cf15_birthdate as date)
+    when sc.cf15_birthdate like '%/%/%' then safe.parse_date('%d/%m/%Y',sc.cf15_birthdate)
+  end as customer_birth_date,
+  sc.cf17_cdp_gender as customer_gender,
+  cast(sc.cf45_cdp_tag_mixed_customer as boolean) as customer_is_omni_buyer,
+  case
+    when sc.cf65_cdp_preferred_store_name = 'Boutique en ligne' then 'Boutique - ECommerce'
+    when sc.cf65_cdp_preferred_store_name like '%GL%' then null
+    else sc.cf65_cdp_preferred_store_name
+  end as customer_preferred_store, 
+  o.loyalty.card_code as loyalty_card_code,
+  cast(ifnull(o.loyalty.id_program,0) as boolean) as loyalty_coupons_use,
+  p.external_id as product_id,
+  p.name as product_name,
+  ifnull(p.unit_price,0)-ifnull(p.discount_amount,0) as product_price_ttc,
+  p.quantity as product_sold_units,
+  p.status as product_is_paid_or_refund,
+  date(sp.created_at) as product_created_date,
+  sp.cf1_material as product_material,
+  case
+    when lower(sp.cf5_sub_category) like '%bague%' then 'Bagues'
+    when lower(sp.cf5_sub_category) like '%collier%' then 'Colliers'
+    when lower(sp.cf5_sub_category) like '%bracelet%' then 'Bracelets'
+    when lower(sp.cf5_sub_category) like '%collier%' then 'Colliers'
+    else 'Other'
+  end as product_category
+from
+  ${ref("raw_splio_orders_with_details")} o,unnest(products) as p
+  left join
+    ${ref("raw_splio_stores")}  ss on ss.name = o.store.name
+  left join
+    ${ref("stores")} s on s.id = ss.external_id
+  left join
+    ${ref("raw_splio_contacts")} sc on sc.id = o.contact.id
+  left join
+    ${ref("raw_splio_products")} sp on p.external_id = sp.external_id
