@@ -1,0 +1,25 @@
+-- Config block
+config {
+  type: "table",
+  schema: "analysis"
+}
+
+with date_range AS (
+    SELECT
+        DATE(date) AS date,
+    FROM
+        UNNEST(GENERATE_DATE_ARRAY(DATE("2014-01-01"), CURRENT_DATE(), INTERVAL 1 DAY)) AS date
+)
+select distinct
+  date_range.date as date,
+  product_id as id,
+  product_name,
+  product_material,
+  product_category,
+  case when product_created_date >= date_sub(date,interval 6 month) then true else false end as is_product_new
+from
+  date_range
+left join
+  ${ref("preanalysis_splio_product")} p
+ON
+  date_range.date >= p.product_created_date
