@@ -1,0 +1,6 @@
+config {
+    type: "declaration",
+    database: "amasty-data",
+    schema: "magento",
+    name: "raw_magento_orders"
+}
