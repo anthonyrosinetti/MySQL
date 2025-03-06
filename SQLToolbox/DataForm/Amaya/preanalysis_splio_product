@@ -1,0 +1,20 @@
+-- Config block
+config {
+  type: "table",
+  schema: "analysis"
+}
+
+select distinct
+  external_id as product_id,
+  name as product_name,
+  created_at as product_created_date,
+  cf1_material as product_material,
+  case
+    when lower(cf5_sub_category) like '%bague%' then 'Bagues'
+    when lower(cf5_sub_category) like '%collier%' then 'Colliers'
+    when lower(cf5_sub_category) like '%bracelet%' then 'Bracelets'
+    when lower(cf5_sub_category) like '%collier%' then 'Colliers'
+    else 'Other'
+  end as product_category
+from
+  ${ref("raw_splio_products")}
