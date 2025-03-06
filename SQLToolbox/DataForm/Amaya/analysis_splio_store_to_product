@@ -1,0 +1,68 @@
+-- Config block
+config {
+  type: "table",
+  schema: "analysis"
+}
+
+with layer1 as (
+  select
+    REGEXP_EXTRACT(case
+      when o.store.name = 'Boutique en ligne' then 'Boutique - ECommerce'
+      when o.store.name like '%GL%' then null
+      else o.store.name
+    end,r" - (.+)$") as store, 
+    cast(s.geo_cluster as string) as store_geo_cluster,
+    cast(s.ca_cluster as string) as store_ca_cluster,  
+    cast(contact.id as string) as customer_id,
+    sc.firstname as customer_firstname,
+    sc.lastname as customer_lastname,
+    sc.email as customer_email,
+    sc.cellphone as customer_phone,
+    date(sc.creation_date) as customer_created_date,
+    ifnull(sc.cf1_optin_email,0) as customer_opt_in_email,
+    ifnull(sc.cf2_optin_phone,0) as customer_opt_in_phone,
+    sc.cf5_address_1_postcode as customer_postcode,
+    case
+      when sc.cf15_birthdate like '%-%-%' then cast(sc.cf15_birthdate as date)
+      when sc.cf15_birthdate like '%/%/%' then safe.parse_date('%d/%m/%Y',sc.cf15_birthdate)
+    end as customer_birth_date,
+    sc.cf17_cdp_gender as customer_gender,
+    case
+      when sc.cf65_cdp_preferred_store_name = 'Boutique en ligne' then 'Boutique - ECommerce'
+      when sc.cf65_cdp_preferred_store_name like '%GL%' then null
+      else sc.cf65_cdp_preferred_store_name
+    end as customer_preferred_store,
+    date(cf33_cdp_first_order_date) as customer_first_order_date,
+    date(safe.parse_datetime('%Y-%m-%d %H:%M:%S', cf37_cdp_date_first_order_store)) as customer_first_order_store_created_date,
+    date(cf34_cdp_last_order_date) as customer_last_order_date,
+    ifnull(cast(cf46_cdp_tag_repeated_customer as boolean),false) as customer_is_returning,
+    ifnull(cast(sc.cf45_cdp_tag_mixed_customer as boolean),false) as customer_is_omni_buyer,
+    ifnull(cf55_cdp_nb_orders,0) as customer_orders_count,
+    date(o.created_at) as order_created_date,
+    lag(date(o.created_at)) over (partition by contact.id order by o.created_at asc) as previous_order_created_date,
+    o.external_id as order_id,
+    o.status as order_status,
+    ifnull(total_price,0)-ifnull(o.discount_amount,0) as ca_ttc,
+    p.external_id as product_id,
+    p.name as product_name,
+    ap.product_material as product_material,
+    ap.product_category as product_category,
+    ap.is_product_new as is_product_new,
+    p.unit_price*p.quantity as product_ca_ttc,
+    p.quantity as product_sold_units
+  from
+    ${ref("raw_splio_orders_with_details")} o,unnest(products) as p
+    left join
+      ${ref("raw_splio_stores")} ss on ss.name = o.store.name
+    left join
+      ${ref("stores")} s on s.id = ss.external_id
+    left join
+      ${ref("raw_splio_contacts")} sc on sc.id = o.contact.id
+    left join
+      ${ref("preanalysis_splio_date_product")} ap on ap.id = p.external_id and ap.date = date(o.created_at)
+)
+select
+    l.*,
+    case when previous_order_created_date is not null then DATE_DIFF(order_created_date,previous_order_created_date,DAY) else null end as previous_order_day_diff
+  from
+    layer1 l
