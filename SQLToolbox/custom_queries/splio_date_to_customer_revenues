@@ -1,0 +1,72 @@
+with layer1 as (
+  select
+    date,
+    so.store,
+    so.store_geo_cluster,
+    so.store_ca_cluster,
+    so.customer_id,
+    case
+      when date_diff(current_date(), so.customer_birth_date, YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', so.customer_birth_date), 1, 0) < 20 then '[-20 ans]'
+      when date_diff(current_date(), so.customer_birth_date, YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', so.customer_birth_date), 1, 0) < 35 then '[20 ans - 35 ans]'
+      when date_diff(current_date(), so.customer_birth_date, YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', so.customer_birth_date), 1, 0) < 50 then '[35 ans - 50 ans]'
+      else '[+50 ans]'
+    end as age_range,
+	case when so.customer_gender not in ('F','M') or so.customer_gender is null then '-' else so.customer_gender end as gender,
+    cpc.region,
+    so.order_id,
+    so.ca_ttc,
+    sum(so.product_sold_units) as order_sold_units
+  from
+    unnest(
+            generate_date_array(
+                PARSE_DATE("%Y%m%d", @DS_START_DATE),
+                PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            )
+        ) date
+    left join
+      `amasty-data.analysis.preanalysis_orders_splio` so
+        on so.order_created_date = date
+--    left join
+--        `amasty-data.analysis.raw_splio_contacts` sc
+--        on so.customer_id = sc.id
+    left join
+      `amasty-data.config.postcodes` cpc
+        on left(so.customer_postcode,2) = cpc.iso2_code
+  group by
+    date,
+    store,
+    store_geo_cluster,
+    store_ca_cluster,
+    customer_id,
+    age_range,
+    gender,
+    region,
+    order_id,
+    ca_ttc
+)
+select
+    date,
+    store,
+    store_geo_cluster,
+    store_ca_cluster,
+	customer_id,
+    age_range,
+    gender,
+    region,
+    count(distinct order_id) as orders_count,
+    sum(ca_ttc) as ca_ttc,
+    sum(order_sold_units) as sold_units
+  from
+    layer1
+  group by
+    date,
+    store,
+    store_geo_cluster,
+    store_ca_cluster,
+	customer_id,
+    age_range,
+    gender,
+    region
