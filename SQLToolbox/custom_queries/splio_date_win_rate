@@ -1,0 +1,54 @@
+with retail_date_customer_first_order as (
+  select
+    date,
+    customer_id
+  from
+    unnest(
+    generate_date_array(
+      PARSE_DATE("%Y%m%d", @DS_START_DATE),
+      PARSE_DATE("%Y%m%d", @DS_END_DATE)
+    )
+  ) date
+  left join `amasty-data.analysis.preanalysis_orders_splio`
+  on date = customer_first_order_store_created_date
+),
+
+retail_date_first_orders as (
+  select
+    date,
+    count(distinct customer_id) as customers_with_first_orders
+  from
+    retail_date_customer_first_order
+  group by
+  	date
+),
+
+retail_account_creations as (
+  select
+  	date,
+    count(distinct customer_id) as customers_creations
+  from
+    unnest(
+    generate_date_array(
+      PARSE_DATE("%Y%m%d", @DS_START_DATE),
+      PARSE_DATE("%Y%m%d", @DS_END_DATE)
+    )
+  ) date
+  left join `amasty-data.analysis.preanalysis_orders_splio`
+  on date = customer_created_date
+  inner join retail_date_customer_first_order
+  using (customer_id)
+  group by
+  	date
+)
+
+select
+  date,
+  case
+	when safe_divide(customers_creations,customers_with_first_orders) > 1 then 1
+	else safe_divide(customers_creations,customers_with_first_orders)
+  end as win_rate
+from
+  retail_account_creations
+  left join retail_date_first_orders
+  using (date)
