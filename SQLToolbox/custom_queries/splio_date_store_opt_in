@@ -1,0 +1,76 @@
+with layer1 as (
+  select
+    date,
+    ord.store,
+    ord.store_geo_cluster,
+    ord.store_ca_cluster,
+    ord.customer_id,
+	ord.order_id,
+    count(distinct order_id) over w0 as total_orders_count,
+    count(distinct case when order_created_date = date then order_id else null end) over w0 as orders_count,
+    ord.customer_birth_date,
+    min(ord.order_created_date) over w as first_customer_store_order_date,
+    max(order_created_date) over w as last_customer_store_order_date,      
+    min(case when cast(sch.cf1_optin_email as bool) then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as first_customer_opt_in_email_date,
+    max(case when cast(sch.cf1_optin_email as bool) then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as last_customer_opt_in_email_date,
+    min(case when cast(sch.cf2_optin_phone as bool) then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as first_customer_opt_in_phone_date,
+    max(case when cast(sch.cf2_optin_phone as bool) then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as last_customer_opt_in_phone_date,
+    min(case when (safe.parse_date('%Y-%m-%d', cf15_birthdate) is not null and left(cf15_birthdate,4) != '1900') or (safe.parse_date('%d/%m/%Y', cf15_birthdate) is not null and right(cf15_birthdate,4) != '1900') then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as first_customer_opt_in_birthday_date,
+    max(case when (safe.parse_date('%Y-%m-%d', cf15_birthdate) is not null and left(cf15_birthdate,4) != '1900') or (safe.parse_date('%d/%m/%Y', cf15_birthdate) is not null and right(cf15_birthdate,4) != '1900') then date(datetime(_ingestion_timestamp)) else cast(null as date) end) over w_ingestion as last_customer_opt_in_birthday_date
+  from
+    unnest(
+            generate_date_array(
+                PARSE_DATE("%Y%m%d", @DS_START_DATE),
+                PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            )
+        ) date
+    left join
+      `amasty-data.analysis.preanalysis_orders_splio` ord
+      on ord.order_created_date <= date
+ 	left join
+      `amasty-data.splio.raw_splio_contacts_history` sch
+      on date(datetime(sch._ingestion_timestamp)) <= date and cast(sch.id as string) = ord.customer_id
+  window w0 as (
+    partition by date,ord.customer_id,ord.store
+  ),
+  w as (
+    partition by ord.customer_id,ord.store
+    order by ord.order_created_date asc
+  ),
+  w_ingestion as (
+    partition by date,ord.customer_id,ord.store
+    order by sch._ingestion_timestamp asc
+  )
+)
+select
+  store,
+  store_geo_cluster,
+  store_ca_cluster,
+  count(distinct case when orders_count > 0 then customer_id else null end) as store_enriched_customers,
+  count(distinct case when total_orders_count > 0 then customer_id else null end) as store_customers,
+  count(distinct case when customer_id is not null then order_id else null end)/count(distinct order_id) as customer_linked_rate,
+  count(distinct case when last_customer_store_order_date >= date_sub(date,interval 12 month) then customer_id else null end) as store_active_customers,
+  count(distinct case when orders_count > 0 and first_customer_store_order_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_email_date = first_customer_store_order_date then customer_id else null end) as store_enriched_first_purchase_customers,
+  count(distinct case when total_orders_count > 0 and first_customer_store_order_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_email_date = first_customer_store_order_date then customer_id else null end) as store_first_purchase_customers,
+
+  count(distinct case when first_customer_opt_in_email_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_enriched_opt_in_email_customers,
+  count(distinct case when first_customer_opt_in_email_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_opt_in_email_customers,
+  count(distinct case when first_customer_opt_in_email_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_email_date = first_customer_store_order_date then customer_id else null end) as store_enriched_opt_in_email_first_purchase_customers,
+  count(distinct case when first_customer_opt_in_email_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_email_date = first_customer_store_order_date then customer_id else null end) as store_opt_in_email_first_purchase_customers,
+  
+  count(distinct case when first_customer_opt_in_phone_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_enriched_opt_in_phone_customers,
+  count(distinct case when first_customer_opt_in_phone_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_opt_in_phone_customers,
+  count(distinct case when first_customer_opt_in_phone_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_phone_date = first_customer_store_order_date then customer_id else null end) as store_enriched_opt_in_phone_first_purchase_customers,
+  count(distinct case when first_customer_opt_in_phone_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_phone_date = first_customer_store_order_date then customer_id else null end) as store_opt_in_phone_first_purchase_customers,
+
+  count(distinct case when first_customer_opt_in_birthday_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_enriched_opt_in_birthday_customers,
+  count(distinct case when first_customer_opt_in_birthday_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as store_opt_in_birthday_customers,
+  count(distinct case when first_customer_opt_in_birthday_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_birthday_date = first_customer_store_order_date then customer_id else null end) as store_enriched_opt_in_birthday_first_purchase_customers,
+  count(distinct case when first_customer_opt_in_birthday_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE) and first_customer_opt_in_birthday_date = first_customer_store_order_date then customer_id else null end) as store_opt_in_birthday_first_purchase_customers
+from
+  layer1
+group by
+  date,
+  store,
+  store_geo_cluster,
+  store_ca_cluster
