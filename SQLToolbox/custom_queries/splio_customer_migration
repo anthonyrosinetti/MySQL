@@ -12,28 +12,10 @@ with date_orders_splio as (
         left join `amasty-data.analysis.preanalysis_orders_splio` o
 		on o.order_created_date = date
 )
--- , layer0 as (
---   select distinct
---   	date,
---   	customer_id,
---     store,
--- 	  count(distinct order_id) as orders_count
---   from
---   	unnest(
---             generate_date_array(
---                 date('2020-01-01'),
---                 current_date()
---             )
---         ) date
---         left join `amasty-data.analysis.preanalysis_orders_splio` o
--- 		on o.order_created_date <= date
---   group by
---   	date,
--- 	  customer_id,
---     store
--- )
 , layer1 as (
-SELECT  
+SELECT
+  	store,
+	case when store_geo_cluster != @cluster and store != 'ECommerce' and store != @boutique_1 and store != @boutique_2 then true else false end as store_is_outside_cluster_and_web,  
     customer_id,
     customer_email as email,
     customer_firstname as prenom,
@@ -43,21 +25,26 @@ SELECT
 	case when max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 1 then true else false end as customer_is_web,
 	case when max(case when o.store = @boutique_1 then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_boutique_1,
 	case when max(case when o.store = @boutique_2 then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_boutique_2,
-	case when max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_web,   	 case when max(case when store_geo_cluster != @cluster and o.store != 'ECommerce' then 1 else 0 end) over w = 1 then true else false end as outside_cluster_and_web,
+	case when max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_web,
+	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 1 then true else false end as customer_is_cluster,
+--  	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 0 and max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 0 then true else false end as outside_cluster_and_web,
 	case
       when count(distinct order_id) over w > 0 and min(customer_created_date) over w >= PARSE_DATE('%Y%m%d',  @DS_START_DATE) then true
   		else false
 	  end as customer_is_new
    ,"periode_1" as date_range
  FROM date_orders_splio o
-WHERE date between PARSE_DATE('%Y%m%d',  @DS_START_DATE) AND PARSE_DATE('%Y%m%d',  @DS_END_DATE)
+WHERE
+    date between PARSE_DATE('%Y%m%d',  @DS_START_DATE) AND PARSE_DATE('%Y%m%d',  @DS_END_DATE)
 window w as (
   partition by o.customer_id
   )
 
  UNION ALL
 
- SELECT  
+ SELECT
+  	store,
+ 	case when store_geo_cluster != @cluster and store != 'ECommerce' and store != @boutique_1 and store != @boutique_2 then true else false end as store_is_outside_cluster_and_web, 
     customer_id,
     customer_email as email,
     customer_firstname as prenom,
@@ -68,11 +55,8 @@ window w as (
 	case when max(case when o.store = @boutique_1 then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_boutique_1,
 	case when max(case when o.store = @boutique_2 then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_boutique_2,
 	case when max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 1 and count(distinct o.store) over w = 1 then true else false end as customer_is_only_web,  
-    case when max(case when store_geo_cluster != @cluster and o.store != 'ECommerce' then 1 else 0 end) over w = 1 then true else false end as outside_cluster_and_web,
---	  case
---      when max(case when o.customer_is_returning = true then 1 else 0 end) over w = 1 then true
---  		else false
---	  end as customer_is_new
+	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 1 then true else false end as customer_is_cluster,
+--  	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 0 and max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 0 then true else false end as outside_cluster_and_web,
 	case
       when count(distinct order_id) over w > 0 and min(customer_created_date) over w >= PARSE_DATE('%Y%m%d',  @DS_START_DATE) then true
   		else false
@@ -87,26 +71,25 @@ window w as (
 )
 
 select
-  customer_id,
-	email,
-	prenom,
-	nom,
-	case when max(case when date_range = 'periode_2' and outside_cluster_and_web then 1 else 0 end) = 1 then true else false end as customer_is_outside_cluster_web_periode_2,
-	case when max(case when date_range = 'periode_1' and customer_is_boutique_1 then 1 else 0 end) = 1 then true else false end as customer_is_boutique_1_periode_1,
-	case when max(case when date_range = 'periode_1' and customer_is_boutique_2 then 1 else 0 end) = 1 then true else false end as customer_is_boutique_2_periode_1,
-	case when max(case when date_range = 'periode_1' and customer_is_web then 1 else 0 end) = 1 then true else false end as customer_is_web_periode_1,
-	case when max(case when date_range = 'periode_1' and customer_is_new then 1 else 0 end) = 1 then true else false end as customer_is_new_periode_1,
-	case when max(case when date_range = 'periode_2' and customer_is_boutique_1 then 1 else 0 end) = 1 then true else false end as customer_is_boutique_1_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_only_boutique_1 then 1 else 0 end) = 1 then true else false end as customer_is_only_boutique_1_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_boutique_2 then 1 else 0 end) = 1 then true else false end as customer_is_boutique_2_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_only_boutique_2 then 1 else 0 end) = 1 then true else false end as customer_is_only_boutique_2_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_web then 1 else 0 end) = 1 then true else false end as customer_is_web_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_only_web then 1 else 0 end) = 1 then true else false end as customer_is_only_web_periode_2,
-	case when max(case when date_range = 'periode_2' and customer_is_new then 1 else 0 end) = 1 then true else false end as customer_is_new_periode_2
-from
-	layer1
-group by
+	store,
+	store_is_outside_cluster_and_web,
 	customer_id,
 	email,
 	prenom,
-	nom
+	nom,
+	case when max(case when date_range = 'periode_2' then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_cluster then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_cluster_periode_2,
+	case when max(case when date_range = 'periode_1' and customer_is_boutique_1 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_boutique_1_periode_1,
+	case when max(case when date_range = 'periode_1' and customer_is_only_boutique_1 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_only_boutique_1_periode_1,
+	case when max(case when date_range = 'periode_1' and customer_is_boutique_2 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_boutique_2_periode_1,
+	case when max(case when date_range = 'periode_1' and customer_is_web then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_web_periode_1,
+	case when max(case when date_range = 'periode_1' and customer_is_new then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_new_periode_1,
+	case when max(case when date_range = 'periode_2' and customer_is_boutique_1 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_boutique_1_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_only_boutique_1 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_only_boutique_1_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_boutique_2 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_boutique_2_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_only_boutique_2 then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_only_boutique_2_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_web then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_web_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_only_web then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_only_web_periode_2,
+	case when max(case when date_range = 'periode_2' and customer_is_new then 1 else 0 end) over (partition by customer_id) = 1 then true else false end as customer_is_new_periode_2
+from
+	layer1
