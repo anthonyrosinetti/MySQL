@@ -1,0 +1,138 @@
+with prios_customers as (
+  select distinct
+    code_client,
+    valeur_client_externe,  
+	gtin,
+    min(case
+      when extract(year from date(date_naissance)) is not null and extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 20 then '[-20 ans]'
+      when extract(year from date(date_naissance)) is not null and extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 35 then '[20 ans - 35 ans]'
+      when extract(year from date(date_naissance)) is not null and extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 50 then '[35 ans - 50 ans]'
+      when extract(year from date(date_naissance)) is not null and extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
+      if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) >= 50 then '[+50 ans]'
+	  else '-'
+    end) as age_range,
+  	min(case
+  		when s.cf17_cdp_gender = 'Other' then 'Autre'
+  		else s.cf17_cdp_gender
+  	end) as gender
+  from
+    `amasty-data.prios.raw_prios_clients` p
+  	left join `amasty-data.splio.raw_splio_contacts` s
+  	on s.`loyalty`[SAFE_OFFSET(0)].card_code = p.gtin
+  where
+  	s.cf17_cdp_gender is not null
+  group by
+  	code_client,
+    valeur_client_externe ,
+	gtin
+),
+
+prios_customers_store_first_order_dates as (
+select distinct
+  o.code_boutique_externe_vente,
+  REGEXP_EXTRACT(case
+    when ps.nom_point_de_vente = 'Boutique en ligne' then 'ECommerce'
+    when ps.nom_point_de_vente like '%GL%' then null
+    else ps.nom_point_de_vente
+    end,r" - (.+)$") as store,
+  o.code_client,
+  min(date(date_fin)) over w as store_customer_first_order_date
+from
+   `amasty-data.prios.raw_prios_tickets` o,unnest(details) as d
+  left join
+    `amasty-data.prios.raw_prios_stores` ps on o.code_boutique_externe_vente = ps.numero_point_de_vente
+  left join
+  `amasty-data.prios.raw_prios_products` p
+  on d.gtin = cast(p.gtin as string)  
+where
+  	type_ticket = 'V'
+    and
+    d.type_ticket_detail = 'A'
+	and
+    o.code_boutique_externe_vente != 'W0001'
+  	and
+  	p.ligne_comm not in ('ACIER DORE','OR BLANC 9CARATS','OR JAUNE 9CARATS','ACIER BLANC')
+  	and
+  	p.ligne_comm is not null
+  	and
+  	p.famille_tech is not null
+    and
+    o.code_client is not null
+window w as (
+    partition by ps.nom_point_de_vente,o.code_client
+    order by date(date_fin) asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+)
+),
+
+prios_orders_scope as (
+select
+  REGEXP_EXTRACT(case
+    when ps.nom_point_de_vente = 'Boutique en ligne' then 'ECommerce'
+    when ps.nom_point_de_vente like '%GL%' then null
+    else ps.nom_point_de_vente
+    end,r" - (.+)$") as store,
+  cast(s.region as string) as region,  
+  o.code_client as customer_id,
+  fo.store_customer_first_order_date,
+  c.age_range,
+  c.gender,
+  p.ligne_comm as product_material,
+  case
+  	when lower(p.famille_tech) like '%bracelet%' or lower(p.famille_tech) like '%coulissant%' or lower(p.famille_tech) like '%jonc%' then 'BRACELET'
+  	when lower(p.famille_tech) like '%medaille%' then 'MEDAILLE'
+	when lower(p.famille_tech) like '%pendentif%' or lower(p.famille_tech) like '%collier%' then 'COLLIER'
+  	else p.famille_tech
+  end as product_category
+from
+   `amasty-data.prios.raw_prios_tickets` o,unnest(o.details) as d
+  left join
+  prios_customers_store_first_order_dates fo
+   using (code_client,code_boutique_externe_vente)
+  left join
+  `amasty-data.prios.raw_prios_products` p
+  on d.gtin = cast(p.gtin as string)
+  left join
+    `amasty-data.prios.raw_prios_stores` ps on o.code_boutique_externe_vente = ps.numero_point_de_vente
+  left join
+  	prios_customers c on o.code_client = c.valeur_client_externe or o.code_client = c.code_client or o.code_client = c.gtin
+  left join
+  	`amasty-data.config.stores` s on o.code_boutique_externe_vente = s.id
+where
+	date(o.date_fin) between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE)
+    and
+  	type_ticket = 'V'
+    and
+    d.type_ticket_detail = 'A'
+	and
+    o.code_boutique_externe_vente != 'W0001'
+  	and
+  	p.ligne_comm not in ('ACIER DORE','OR BLANC 9CARATS','OR JAUNE 9CARATS','ACIER BLANC')
+  	and
+  	p.ligne_comm is not null
+  	and
+  	p.famille_tech is not null
+    and
+    o.code_client is not null
+)
+select
+	po.store,
+	po.region,
+	po.customer_id,
+	po.age_range,
+	po.gender,
+    case
+      when store_customer_first_order_date >= PARSE_DATE("%Y%m%d", @DS_START_DATE) then 'Nouvel acheteur'
+      when store_customer_first_order_date < PARSE_DATE("%Y%m%d", @DS_START_DATE) then 'Ancien acheteur'
+    end as recent_status,
+	po.product_material,
+	po.product_category
+from
+	prios_orders_scope po
+where
+	po.gender is not null
+	and
+	po.age_range is not null
