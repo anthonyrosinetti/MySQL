@@ -1,0 +1,40 @@
+with end_global_opt_ins as (
+select distinct
+  date(datetime(sch._ingestion_timestamp)) as ingestion_date,
+  id as customer_id,
+  o.order_created_date,
+  last_value(o.store) over w as store,
+  last_value(o.store_geo_cluster) over w as store_geo_cluster,
+  last_value(o.store_ca_cluster) over w as store_ca_cluster,
+  last_value(case when sch.cf1_optin_email = 1 then true else false end) over w_ingestion as period_end_opt_in_email,
+  last_value(case when sch.cf2_optin_phone = 1 then true else false end) over w_ingestion as period_end_opt_in_phone,
+  last_value(case when (safe.parse_date('%Y-%m-%d', sch.cf15_birthdate) is not null and left(sch.cf15_birthdate,4) != '1900') or (safe.parse_date('%d/%m/%Y', sch.cf15_birthdate) is not null and right(sch.cf15_birthdate,4) != '1900') then true else false end) over w_ingestion as period_end_opt_in_birthday
+from
+  `amasty-data.splio.raw_splio_contacts_history` sch
+  left join
+  `amasty-data.analysis.preanalysis_orders_splio` o
+      on cast(sch.id as string) = o.customer_id and o.order_created_date <= date(datetime(sch._ingestion_timestamp))
+  window w_ingestion as (
+    partition by sch.id
+    order by sch._ingestion_timestamp asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  ),
+  w as (
+    partition by o.customer_id
+    order by o.order_created_date asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  )
+)
+
+select
+  * except (order_created_date),  
+  last_value(order_created_date) over w as store_last_order_date,
+  case when last_value(order_created_date) over w >= datetime_sub(PARSE_DATE("%Y%m%d", @DS_END_DATE),interval 12 month) then true else false end as store_customer_is_active from
+  end_global_opt_ins
+where
+  ingestion_date between date(2025,2,5) and PARSE_DATE("%Y%m%d", @DS_END_DATE)  
+window w as (
+  partition by customer_id,store
+  order by order_created_date asc
+  ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+)
