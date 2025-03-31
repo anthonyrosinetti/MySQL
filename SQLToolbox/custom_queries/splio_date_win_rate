@@ -1,6 +1,7 @@
 with retail_date_customer_first_order as (
   select
-    date,
+	date,
+    store,
     customer_id
   from
     unnest(
@@ -16,16 +17,19 @@ with retail_date_customer_first_order as (
 retail_date_first_orders as (
   select
     date,
+  	store,
     count(distinct customer_id) as customers_with_first_orders
   from
     retail_date_customer_first_order
   group by
-  	date
+  	date,
+    store
 ),
 
 retail_account_creations as (
   select
-  	date,
+	date,
+    r.store,
     count(distinct customer_id) as customers_creations
   from
     unnest(
@@ -36,14 +40,16 @@ retail_account_creations as (
   ) date
   left join `amasty-data.analysis.preanalysis_orders_splio`
   on date = customer_created_date
-  inner join retail_date_customer_first_order
+  inner join retail_date_customer_first_order r
   using (customer_id)
   group by
-  	date
+  	date,
+	store
 )
 
 select
   date,
+  store,
   case
 	when safe_divide(customers_creations,customers_with_first_orders) > 1 then 1
 	else safe_divide(customers_creations,customers_with_first_orders)
@@ -51,4 +57,4 @@ select
 from
   retail_account_creations
   left join retail_date_first_orders
-  using (date)
+  using (date,store)
