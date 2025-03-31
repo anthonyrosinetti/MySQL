@@ -1,0 +1,58 @@
+with all_first_purchases as (
+  select distinct
+    customer_id,
+    first_value(order_created_date) over w as first_purchase_date,
+    first_value(store) over w as store
+  from
+    `amasty-data.analysis.preanalysis_orders_splio`
+  window w as (
+    partition by customer_id
+    order by order_created_date asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  )
+),
+
+first_purchases as (
+  select
+    *
+  from
+    all_first_purchases
+  where
+    first_purchase_date between date(2025,2,5) and PARSE_DATE("%Y%m%d", @DS_END_DATE)
+),
+
+before_after_first_purchases as (
+  select distinct
+    fp.*,
+    last_value(case when sch.cf1_optin_email = 0 or sch.cf1_optin_email is null then true else false end) over w_ingestion as before_email_opt_out,
+    first_value(case when sch2.cf1_optin_email = 1 then true else false end) over w_ingestion_2 as after_email_opt_in,
+    last_value(case when sch.cf2_optin_phone = 0 or sch.cf2_optin_phone is null then true else false end) over w_ingestion as before_phone_opt_out,
+    first_value(case when sch2.cf2_optin_phone = 1 then true else false end) over w_ingestion_2 as after_phone_opt_in,
+    last_value(case when sch.cf15_birthdate is null then true else false end) over w_ingestion as before_birthday_opt_out,
+    first_value(case when (safe.parse_date('%Y-%m-%d', sch2.cf15_birthdate) is not null and left(sch2.cf15_birthdate,4) != '1900') or (safe.parse_date('%d/%m/%Y', sch2.cf15_birthdate) is not null and right(sch2.cf15_birthdate,4) != '1900') then true else false end) over w_ingestion_2 as after_birthday_opt_in
+  from
+    first_purchases fp
+    left join `amasty-data.splio.raw_splio_contacts_history` sch
+      on fp.customer_id = cast(sch.id as string) and date(datetime(sch._ingestion_timestamp)) < first_purchase_date
+    left join `amasty-data.splio.raw_splio_contacts_history` sch2
+      on fp.customer_id = cast(sch2.id as string) and date(datetime(sch2._ingestion_timestamp)) >= first_purchase_date 
+  window w_ingestion as (
+    partition by sch.id
+    order by sch._ingestion_timestamp asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  ),
+  w_ingestion_2 as (
+    partition by sch2.id
+    order by sch2._ingestion_timestamp asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  )
+)
+
+select
+  customer_id,
+  store,
+  case when before_email_opt_out and after_email_opt_in then true else false end as first_purchase_email_opt_in,
+  case when before_phone_opt_out and after_phone_opt_in then true else false end as first_purchase_phone_opt_in,
+  case when before_birthday_opt_out and after_birthday_opt_in then true else false end as first_purchase_birthday_opt_in
+from
+  before_after_first_purchases
