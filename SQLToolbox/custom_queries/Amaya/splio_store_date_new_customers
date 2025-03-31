@@ -1,0 +1,41 @@
+with first_purchases as (
+  select distinct
+    store,
+    customer_id,
+    first_value(order_created_date) over w as store_first_purchase_date
+  from
+    `amasty-data.analysis.preanalysis_orders_splio`
+  window w as (
+    partition by store,customer_id
+    order by order_created_date asc
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  )
+),
+
+layer1 as (
+  select distinct
+      date,
+      store,
+      customer_id,
+      store_first_purchase_date
+  from
+    unnest(
+      generate_date_array(
+        PARSE_DATE("%Y%m%d", @DS_START_DATE),
+        PARSE_DATE("%Y%m%d", @DS_END_DATE)
+      )
+    ) date
+    left join
+    first_purchases fp
+    on date = fp.store_first_purchase_date
+)
+
+select
+	date,
+	store,
+	count(distinct case when store_first_purchase_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as new_customers
+from
+	layer1
+group by
+	date,
+	store
