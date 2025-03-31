@@ -1,0 +1,15 @@
+select
+  date,
+  o.store,
+  o.customer_id,
+  o.customer_is_omni_buyer
+from
+  unnest(
+    generate_date_array(
+      PARSE_DATE("%Y%m%d", @DS_START_DATE),
+      PARSE_DATE("%Y%m%d", @DS_END_DATE)
+    )
+  ) date
+  left join
+  `amasty-data.analysis.preanalysis_orders_splio`  o
+  on order_created_date <= date
