@@ -7,107 +7,33 @@ config {
 with prios_customers as (
   select distinct
     code_client,
-    date(date_creation_client) as customer_created_date,
-    coord.coordonnees as email,
-    prenom_client,
-    nom_client,
-    case	
-      when date_diff(current_date(), date(date_naissance), YEAR) - 
+    min(coord.coordonnees) as email,
+    min(prenom_client) as prenom,
+    min(nom_client) as nom,
+    min(case	
+      when extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
       if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 20 then '[-20 ans]'
-      when date_diff(current_date(), date(date_naissance), YEAR) - 
+      when extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
       if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 35 then '[20 ans - 35 ans]'
-      when date_diff(current_date(), date(date_naissance), YEAR) - 
+      when extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
       if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) < 50 then '[35 ans - 50 ans]'
-      when date_diff(current_date(), date(date_naissance), YEAR) - 
+      when extract(year from date(date_naissance)) > 1900 and extract(year from date(date_naissance)) <= extract(year from current_date()) and date_diff(current_date(), date(date_naissance), YEAR) - 
       if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(date_naissance)), 1, 0) >= 50 then '[+50 ans]'
 	  else '-'
-    end as age_range,
-    cpc.region
+    end) as age_range,
+    min(cpc.region) as customer_region
   from
     ${ref("raw_prios_clients")},unnest(liste_coordonne_client_externe) coord,unnest(liste_adresse_client_externe) adress
-    left join
-      ${ref("postcodes")} cpc
-        on left(adress.code_postal,2) = cpc.iso2_code
+    left join ${ref("postcodes")} cpc on case when length(adress.code_postal) = 5 then left(adress.code_postal,2) else null end = cpc.iso2_code
   where
     coord.type_coordonne = 'MAIL - Principal'
-)
-, prios_orders_scope as (
-  select
-    date(date_fin) as order_created_date,
-    numero_tck_interne as order_id,
-    code_client as customer_id,
-    c.customer_created_date,
-    c.email,
-    c.prenom_client as prenom,
-    c.nom_client as nom,
-    c.age_range,
-    c.region,
-    REGEXP_EXTRACT(case
-      when ps.nom_point_de_vente = 'Boutique en ligne' then 'ECommerce'
-      when ps.nom_point_de_vente like '%GL%' then null
-      else ps.nom_point_de_vente
-    end,r" - (.+)$") as store,
-    case
-      when ps.nom_point_de_vente = 'Boutique en ligne' then 'Web'
-      else 'Retail'
-    end as retail_or_web_store,
-    cast(s.geo_cluster as string) as store_geo_cluster,
-    cast(s.ca_cluster as string) as store_ca_cluster,
-    cast(s.region as string) as store_region,
-    cast(null as string) as payment_method,
-    sum(d.quantite) as order_sold_units,
-    sum(d.quantite*d.pu_net/100000) as ca_ttc
-  from
-    ${ref("raw_prios_tickets")} t,unnest(details) as d
-    left join
-    prios_customers c using (code_client)
-    left join
-    ${ref("raw_prios_stores")} ps on t.code_boutique_externe_vente = ps.numero_point_de_vente
-    left join
-    ${ref("stores")} s on t.code_boutique_externe_vente = s.id
-  where
-    type_ticket = 'V'
-    and
-    d.quantite>0
   group by
-    date_fin,
-    order_id,
-    customer_id,
-    customer_created_date,
-    email,
-    prenom_client,
-    nom_client,
-    age_range,
-    region,  
-    store,
-    retail_or_web_store,
-    store_geo_cluster,
-    store_ca_cluster,
-    store_region,
-    payment_method
+    code_client
 )
-, magento_layer1 as (
-  select
-    date(datetime(o.created_at)) as order_created_date,
-    cast(o.entity_id as string) as order_id,
-    total_qty_ordered as order_sold_units,
-    ifnull(base_grand_total,0) as ca_ttc,
-    ifnull(max (
-      cast(
-      coalesce(
-        regexp_extract(sh.comment, r"Nous avons remboursé ([0-9]+(?:\.[0-9]+)?) €"),
-        regexp_extract(sh.comment, r"We refunded €([0-9]+(?:\.[0-9]+)?)"),
-        regexp_extract(sh.comment, r"([0-9]+(?:\.[0-9]+)?) € \(dans la devise de base du magasin\)"),
-        regexp_extract(sh.comment, r"€([0-9]+(?:\.[0-9]+)?) \(in store's base currency\)"),
-        regexp_extract(sh.comment, r"Gift card was created for refund for amount ([0-9]+(?:\.[0-9]+)?) with code")
-      )
-as float64)) over (partition by order_id),0) as refund_ht,
-    ifnull(base_grand_total,0)-ifnull(o.base_tax_amount,0)-ifnull(o.base_tax_refunded,0) as ca_ht,
-    ifnull(o.base_discount_amount,0)+ifnull(o.base_discount_tax_compensation_amount,0) as discount_ht,
-    case when i.name = 'Carte cadeau' then ifnull(i.qty_ordered,0)*ifnull(i.base_price,0) else 0 end as ca_purchased_cc,
-    case when payment.method = 'free' then ifnull(base_subtotal,0)*(1+t.tax_rate)-ifnull(o.base_discount_amount,0)+ifnull(o.base_discount_tax_compensation_amount,0) else 0 end as ca_spent_cc,
-    cast(o.customer_id as string) as customer_id,
-    date(datetime(c.created_at)) as customer_created_date,
+
+, magento_customers as (
+    select distinct
+    customer_id,
     c.email,
     c.firstname as prenom,
     c.lastname as nom,
@@ -122,61 +48,127 @@ as float64)) over (partition by order_id),0) as refund_ht,
       if(format_date('%m-%d', current_date()) < format_date('%m-%d', date(dob)), 1, 0) >= 50 then '[+50 ans]'
 	  else '-'
     end as age_range,
-    cpc.region,
-    'ECommerce' as store,
-    'Web' as store_geo_cluster,
-    'rang_web' as store_ca_cluster,
-    'web' as store_region,
-    payment.method as payment_method
+    min(cpc.region) over (partition by customer_id) as customer_region
+  from ${ref("raw_magento_customers")} c,unnest(addresses) adress
+    left join ${ref("postcodes")} cpc on case when length(adress.postcode) = 5 then left(adress.postcode,2) else null end = cpc.iso2_code
+)
+
+, prios_sold_units as (
+  select distinct
+    date(date_fin) as order_created_date,
+    numero_tck_interne,
+    sum(d.quantite) as order_sold_units,
+    sum(d.quantite*d.pu_net/100000) as ca_ttc
+  from
+    ${ref("raw_prios_tickets")} t,unnest(details) as d
+  where
+    type_ticket = 'V'
+    and
+    d.type_ticket_detail = 'A'    
+  group by
+    order_created_date,
+    numero_tck_interne
+)
+
+, prios_orders_scope as (
+  select distinct
+    date(date_fin) as order_created_date,
+    numero_tck_interne as order_id,
+    cast(null as string) as payment_method,    
+    t.code_client as customer_id,
+    email,
+    prenom,
+    nom,
+    age_range,
+    customer_region,
+    REGEXP_EXTRACT(case
+      when ps.nom_point_de_vente = 'Boutique en ligne' then 'ECommerce'
+      when ps.nom_point_de_vente like '%GL%' then null
+      else ps.nom_point_de_vente
+    end,r" - (.+)$") as store,
+    case
+      when ps.nom_point_de_vente = 'Boutique en ligne' then 'Web'
+      else 'Retail'
+    end as retail_or_web_store,
+    cast(s.geo_cluster as string) as store_geo_cluster,
+    cast(s.ca_cluster as string) as store_ca_cluster,
+    cast(s.region as string) as store_region,
+    order_sold_units,
+    ca_ttc,
+  from
+    ${ref("raw_prios_tickets")} t
+    left join
+    prios_customers using (code_client)
+    left join
+    prios_sold_units using (numero_tck_interne)
+    left join
+    ${ref("raw_prios_stores")} ps on t.code_boutique_externe_vente = ps.numero_point_de_vente
+    left join
+    ${ref("stores")} s on t.code_boutique_externe_vente = s.id
+  where
+    type_ticket = 'V'
+    and
+    `details`[SAFE_OFFSET(0)].type_ticket_detail = 'A'    
+)
+
+, magento_refunds_cc_purchased as (
+select distinct
+    date(datetime(o.created_at)) as order_created_date,
+    o.entity_id,
+    max(ifnull(
+      cast(
+      coalesce(
+        regexp_extract(sh.comment, r"Nous avons remboursé ([0-9]+(?:\.[0-9]+)?) €"),
+        regexp_extract(sh.comment, r"We refunded €([0-9]+(?:\.[0-9]+)?)"),
+        regexp_extract(sh.comment, r"([0-9]+(?:\.[0-9]+)?) € \(dans la devise de base du magasin\)"),
+        regexp_extract(sh.comment, r"€([0-9]+(?:\.[0-9]+)?) \(in store's base currency\)"),
+        regexp_extract(sh.comment, r"Gift card was created for refund for amount ([0-9]+(?:\.[0-9]+)?) with code")
+      )
+    as float64),0)) as refund_ht,
+    max(case when i.name = 'Carte cadeau' then ifnull(i.qty_ordered,0)*ifnull(i.base_price,0) else 0 end) as ca_purchased_cc
 from
     ${ref("raw_magento_orders")} o,unnest(items) i
-    cross join unnest(status_histories) sh
+    left join unnest(status_histories) sh 
     on date_trunc(date(datetime(sh.created_at)),month) = date_trunc(date(datetime(o.created_at)),month)    
-    left join ${ref("raw_magento_customers")} c on o.customer_id = c.id
-    cross join unnest(addresses) adress
-    left join ${ref("postcodes")} cpc
-        on left(adress.postcode,2) = cpc.iso2_code
+where
+    o.status not in ('pending_payment','canceled','test','collab')
+group by
+  order_created_date,
+  entity_id
+)
+
+, magento_orders_scope as (
+  select distinct
+    date(datetime(o.created_at)) as order_created_date,
+    cast(o.entity_id as string) as order_id,
+    total_qty_ordered as order_sold_units,
+    ifnull(base_grand_total,0) as ca_ttc,
+    ifnull(base_grand_total,0)-ifnull(o.base_tax_amount,0)-ifnull(o.base_tax_refunded,0) as ca_ht,
+    ifnull(o.base_discount_amount,0)+ifnull(o.base_discount_tax_compensation_amount,0) as discount_ht,
+    case when payment.method = 'free' then ifnull(base_subtotal,0)*(1+t.tax_rate)-ifnull(o.base_discount_amount,0)+ifnull(o.base_discount_tax_compensation_amount,0) else 0 end as ca_spent_cc,
+    rfc.refund_ht,
+    rfc.ca_purchased_cc,
+    cast(o.customer_id as string) as customer_id,
+    c.email,
+    c.prenom,
+    c.nom,
+    c.age_range,
+    c.customer_region,
+    'ECommerce' as store,
+    'Web' as retail_or_web_store,
+    'Web' as store_geo_cluster,
+    1 as store_geo_cluster_stores_count,
+    'rang_web' as store_ca_cluster,
+    cast(cpo.region as string) as store_region,
+    payment.method as payment_method
+from
+    ${ref("raw_magento_orders")} o
+    left join magento_customers c using (customer_id)
+    left join magento_refunds_cc_purchased rfc using (entity_id)
+    left join ${ref("postcodes")} cpo on case when length(o.billing_address.postcode) = 5 then left(o.billing_address.postcode,2) else null end = cpo.iso2_code
     left join ${ref("taxes")} t on t.alpha2_code = o.billing_address.country_id
 where
     o.status not in ('pending_payment','canceled','test','collab')
-)
-, magento_orders_scope as (
-  select
-    store,
-    'Web' as retail_or_web_store,
-    store_geo_cluster,
-    store_ca_cluster,
-    store_region,
-    payment_method,
-    customer_id,
-    customer_created_date,
-    email,
-    prenom,
-    nom,
-    age_range,
-    region,
-    order_created_date,
-    order_id,
-    max(order_sold_units) as order_sold_units,
-    max(ca_ttc) as ca_ttc,
-    max(ca_ht)-max(refund_ht)+max(discount_ht)-max(ca_purchased_cc)+max(ca_spent_cc) as ca_financier_ht
-  from
-    magento_layer1
-  group by
-    order_created_date,
-    order_id,
-    customer_id,
-    customer_created_date,
-    email,
-    prenom,
-    nom,
-    age_range,
-    region,
-    store,
-    store_geo_cluster,
-    store_ca_cluster,
-    store_region,
-    payment_method
 )
 
 select
@@ -193,13 +185,13 @@ select
   pos.prenom,
   pos.nom,
   ifnull(pos.age_range,'-') as age_range,
-  ifnull(pos.region,'-') as region,
+  ifnull(pos.customer_region,'-') as customer_region,
   count(distinct pos.store) over w as customer_geo_cluster_stores_count,
   count(distinct pos.store) over w1 as customer_ca_cluster_stores_count,
   count(distinct pos.order_id) as orders_count,
   sum(pos.order_sold_units) as order_sold_units,
   sum(pos.ca_ttc) as ca_ttc,
-  sum(pos.ca_ttc) as ca_financier
+  sum(pos.ca_ttc) as ca_financier_ht
 from
   unnest(
           generate_date_array(
@@ -224,7 +216,7 @@ group by
   prenom,
   nom,
   age_range,
-  region
+  customer_region
 window w as (
   partition by pos.customer_id,pos.store_geo_cluster
 ),
@@ -238,46 +230,46 @@ w2 as (
 union all
 
 select
-  date,
-  mos.store,
-  mos.retail_or_web_store,
-  mos.store_geo_cluster,
-  1 as store_geo_cluster_stores_count,
-  mos.store_ca_cluster,
-  mos.store_region,
-  mos.payment_method,
-  mos.customer_id,
-  mos.email,
-  mos.prenom,
-  mos.nom,
-  ifnull(mos.age_range,'-') as age_range,
-  ifnull(region,'-') as region,
-  0 as customer_geo_cluster_stores_count,
-  0 as customer_ca_cluster_stores_count,    
-  count(distinct mos.order_id) as orders_count,
-  sum(mos.order_sold_units) as order_sold_units,
-  sum(mos.ca_ttc) as ca_ttc,
-  max(mos.ca_financier_ht) as ca_financier
+    date,
+    mos.store,
+    mos.retail_or_web_store,
+    mos.store_geo_cluster,
+    1 as store_geo_cluster_stores_count,
+    mos.store_ca_cluster,
+    mos.store_region,
+    mos.payment_method,
+    mos.customer_id,
+    mos.email,
+    mos.prenom,
+    mos.nom,
+    ifnull(mos.age_range,'-') as age_range,
+    ifnull(customer_region,'-') as customer_region,
+    0 as customer_geo_cluster_stores_count,
+    0 as customer_ca_cluster_stores_count,    
+    count(distinct mos.order_id) as orders_count,
+    sum(mos.order_sold_units) as order_sold_units,
+    sum(mos.ca_ttc) as ca_ttc,
+    sum(mos.ca_ht)-sum(mos.refund_ht)+sum(mos.discount_ht)-sum(mos.ca_purchased_cc)+sum(mos.ca_spent_cc) as ca_financier_ht    
 from
-  unnest(
-          generate_date_array(
-              date('2014-01-01'),
-              current_date()
-          )
-      ) date
-  left join magento_orders_scope mos
-  on date = mos.order_created_date
+    unnest(
+            generate_date_array(
+                date('2014-01-01'),
+                current_date()
+            )
+        ) date
+    left join magento_orders_scope mos 
+	  on date = mos.order_created_date
 group by
-  date,
-  store,
-  retail_or_web_store,
-  store_geo_cluster,
-  store_ca_cluster,
-  store_region,
-  payment_method,
-  customer_id,
-  email,
-  prenom,
-  nom,
-  age_range,
-  region
+    date,
+    store,
+    retail_or_web_store,
+    store_geo_cluster,
+    store_ca_cluster,
+    store_region,
+    payment_method,
+    customer_id,
+    email,
+    prenom,
+    nom,
+    age_range,
+    customer_region
