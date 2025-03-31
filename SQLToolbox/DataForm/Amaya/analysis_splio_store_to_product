@@ -42,6 +42,8 @@ with layer1 as (
     lag(date(o.created_at)) over (partition by contact.id order by o.created_at asc) as previous_order_created_date,
     o.external_id as order_id,
     o.status as order_status,
+    l.earned_date as loyalty_card_code_earned_date,
+    l.burned_date as loyalty_card_code_burned_date,    
     ifnull(total_price,0)-ifnull(o.discount_amount,0) as ca_ttc,
     p.external_id as product_id,
     p.name as product_name,
@@ -52,6 +54,8 @@ with layer1 as (
     p.quantity as product_sold_units
   from
     ${ref("raw_splio_orders_with_details")} o,unnest(products) as p
+    left join
+      ${ref("raw_splio_loyalty_granted_rewards")} l on o.loyalty.card_code = cast(l.card_code as string)        
     left join
       ${ref("raw_splio_stores")} ss on ss.name = o.store.name
     left join
