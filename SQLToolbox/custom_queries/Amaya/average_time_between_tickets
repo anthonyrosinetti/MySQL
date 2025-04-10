@@ -1,0 +1,23 @@
+with layer1 as (
+  select distinct
+    cast(customer_id as string) as customer_id,
+    order_created_date,
+    lag(order_created_date) over (partition by customer_id order by order_created_date asc) as previous_order_created_date
+  from
+    `amasty-data.analysis.preanalysis_orders_splio` o
+    where
+      order_created_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE)
+)
+
+, temp as (
+select
+    l.*,
+    case when previous_order_created_date is not null and previous_order_created_date != order_created_date then DATE_DIFF(order_created_date,previous_order_created_date,DAY) else null end as previous_order_day_diff
+  from
+    layer1 l
+)
+
+select
+  avg(previous_order_day_diff) as avg_order_date_diff
+from
+  temp
