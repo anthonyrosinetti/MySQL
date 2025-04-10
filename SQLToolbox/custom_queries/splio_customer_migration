@@ -29,9 +29,10 @@ SELECT
 	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 1 then true else false end as customer_is_cluster,
 --  	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 0 and max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 0 then true else false end as outside_cluster_and_web,
 	case
-      when count(distinct order_id) over w > 0 and min(customer_created_date) over w >= PARSE_DATE('%Y%m%d',  @DS_START_DATE) then true
-  		else false
-	  end as customer_is_new
+      when min(customer_created_date) over w between PARSE_DATE('%Y%m%d',  @DS_START_DATE) AND PARSE_DATE('%Y%m%d',  @DS_END_DATE) then true
+      when min(customer_created_date) over w < PARSE_DATE('%Y%m%d', @DS_START_DATE) then false
+  	  else false
+	end as customer_is_new
    ,"periode_1" as date_range
  FROM date_orders_splio o
 WHERE
@@ -58,9 +59,10 @@ window w as (
 	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 1 then true else false end as customer_is_cluster,
 --  	case when max(case when o.store_geo_cluster = @cluster then 1 else 0 end) over w = 0 and max(case when o.store = 'ECommerce' then 1 else 0 end) over w = 0 then true else false end as outside_cluster_and_web,
 	case
-      when count(distinct order_id) over w > 0 and min(customer_created_date) over w >= PARSE_DATE('%Y%m%d',  @DS_START_DATE) then true
-  		else false
-	  end as customer_is_new  
+      when min(customer_created_date) over w between PARSE_DATE('%Y-%m-%d', @compared_date_range_start) and PARSE_DATE('%Y-%m-%d',  @compared_date_range_end) then true
+      when min(customer_created_date) over w < PARSE_DATE('%Y-%m-%d', @compared_date_range_start) then false
+  	  else false
+	end as customer_is_new  
 	,"periode_2" as date_range
  FROM date_orders_splio o
  WHERE
