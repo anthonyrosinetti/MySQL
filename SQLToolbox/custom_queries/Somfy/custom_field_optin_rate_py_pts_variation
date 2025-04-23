@@ -1,0 +1,6 @@
+CONCAT(
+ IF (optin_rate >= optin_rate_previous_year , "+","")
+ ,
+ CAST(ROUND(100*(optin_rate-optin_rate_previous_year),1) AS TEXT)
+ ,
+ " pts" )
