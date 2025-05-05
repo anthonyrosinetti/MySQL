@@ -1,10 +1,9 @@
 with first_purchases as (
   select distinct
-    store,
     customer_id,
-    first_value(order_created_date) over w as store_first_purchase_date
+    first_value(order_created_date) over w as first_purchase_date
   from
-    `amasty-data.analysis.preanalysis_orders_splio`
+    `amasty-data.analysis.preanalysis_orders_splio_opt_in_only`
   window w as (
     partition by customer_id
     order by order_created_date asc
@@ -13,13 +12,12 @@ with first_purchases as (
 ),
 
 last_purchases as (
-  select
-    store,
+  select distinct
     customer_id,
-    last_value(order_created_date) over w as store_customer_last_order_date,
-    lag(order_created_date) over w as store_customer_previous_last_order_date
+    last_value(order_created_date) over w as last_order_date,
+    lag(order_created_date) over w as previous_last_order_date
   from
-    `amasty-data.analysis.preanalysis_orders_splio`
+    `amasty-data.analysis.preanalysis_orders_splio_opt_in_only`
   where
   	order_created_date <= PARSE_DATE("%Y%m%d", @DS_END_DATE)
     window w as (
@@ -33,27 +31,25 @@ layer1 as (
     o.store,
     o.customer_id,
 	o.customer_created_date,  
-    fp.store_first_purchase_date,
-    lp.store_customer_last_order_date,
-    lp.store_customer_previous_last_order_date
+    fp.first_purchase_date,
+    lp.last_order_date,
+    lp.previous_last_order_date
   from
-      `amasty-data.analysis.preanalysis_orders_splio`  o
+      `amasty-data.analysis.preanalysis_orders_splio_opt_in_only`  o
     left join
       first_purchases fp
-      on o.store = fp.store and o.customer_id = fp.customer_id
+      on o.customer_id = fp.customer_id
     left join
       last_purchases lp
-      on o.store = lp.store and o.customer_id = lp.customer_id
-  where order_created_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE)
+      on o.customer_id = lp.customer_id
+  where o.order_created_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE)
 )
 
 select
   store,
-  count(distinct customer_id) as total_customers,
-  count(distinct case when customer_created_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then customer_id else null end) as new_customers,
-  count(distinct case when customer_created_date < PARSE_DATE("%Y%m%d", @DS_START_DATE) then customer_id else null end) as returning_customers,
-  count(distinct case when store_customer_last_order_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and store_customer_previous_last_order_date < date_sub(store_customer_last_order_date,interval 12 month) then customer_id else null end) as reactivated_customers
+  customer_id,
+  case when first_purchase_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) then true else false end as is_new,
+  case when first_purchase_date < PARSE_DATE("%Y%m%d", @DS_START_DATE) then true else false end as is_returning,
+  case when last_order_date between PARSE_DATE("%Y%m%d", @DS_START_DATE) and PARSE_DATE("%Y%m%d", @DS_END_DATE) and previous_last_order_date < date_sub(last_order_date,interval 12 month) then true else false end as is_reactivated
 from
   layer1
-group by
-  store
