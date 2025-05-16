@@ -1,0 +1,40 @@
+WITH layer1 AS (
+  SELECT
+  	  store,
+  	  DATE_TRUNC(date,MONTH) AS month,
+      ROUND(SUM(item_total_revenue),0) AS monthly_ca,
+      COUNT(DISTINCT order_id) AS monthly_orders,
+      SUM(item_total_quantity) AS monthly_sold_units,
+      AVG(item_margin) AS monthly_margin
+  FROM
+      `reporting-boryl-lcda.analysis.analysis_orders`
+  WHERE
+      date between PARSE_DATE('%Y%m%d',  @DS_START_DATE) AND PARSE_DATE('%Y%m%d',  @DS_END_DATE)
+  GROUP BY
+	  store,
+  	  DATE_TRUNC(date,MONTH)
+),
+
+layer2 AS (
+  SELECT
+    store,
+    month,
+    sum(monthly_ca) as monthly_ca,
+    sum(monthly_orders) as monthly_orders,
+    sum(monthly_sold_units) as monthly_sold_units,
+    avg(monthly_margin) as monthly_margin
+  from
+    layer1
+  group by
+    store,
+    month
+)
+
+SELECT
+  *,
+  LAG(monthly_ca) OVER (order by store,month asc) as ca_m_1,
+  LAG(monthly_orders) OVER (order by store,month asc) as orders_m_1,
+  LAG(monthly_sold_units) OVER (order by store,month asc) as sold_units_m_1,
+  LAG(monthly_margin) OVER (order by store,month asc) as margin_m_1
+FROM
+	layer2
