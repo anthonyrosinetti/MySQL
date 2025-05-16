@@ -1,0 +1,320 @@
+-- Config block
+config {
+  type: "table"
+}
+
+-- SQL
+with reduced_products as (
+    select
+        id as product_id,
+        type_id as simple_or_bundle,
+        created_at as product_created_date,
+        updated_at as product_updated_date,
+        price,
+        case when status = 1
+        and visibility in (2, 3, 4) then true else false end as is_product_active,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'ean'
+        ) as ean,        
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'colisage'
+        ) as colisage,        
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'specie'
+        ) as specie_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'surtype_produit'
+        ) as surtype_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'type_produit'
+        ) as type_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'manufacturer'
+        ) as manufacturer_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'supplier'
+        ) as supplier_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'brand'
+        ) as brand_id,
+        (
+            select
+                json_extract_scalar(c, '$.value')
+            from
+                unnest(json_extract_array(custom_attributes)) c
+            where
+                json_extract_scalar(c, '$.attribute_code') = 'objectif_sante'
+        ) as attribut_sante_id
+    from
+        ${ref("raw_magento_products")}
+)
+, matched_product_attributes_layer1 as (
+    select
+        date(product_created_date) as product_created_date,
+        date(product_updated_date) as product_updated_date,
+        product_id,
+        simple_or_bundle,
+        is_product_active,
+        ean,
+        cast(case when colisage = '0' then '1' else colisage end as int64) as colisage,
+        split(specie_id, ",") as split_species,
+        surtype.label as surtype,
+        type.label as type,
+        manu.label as manufacturer,
+        split(supplier_id, ",") as split_suppliers,
+        brand.label as brand,
+        split(attribut_sante_id, ",") as split_attributs_sante,
+        max(is_product_active) over (partition by brand.label) as is_brand_active
+    from
+        reduced_products r
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'surtype_produit'
+        ) surtype on r.surtype_id = surtype.value
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'type_produit'
+        ) type on r.type_id = type.value
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'manufacturer'
+        ) manu on r.manufacturer_id = manu.value
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'brand'
+        ) brand on r.brand_id = brand.value
+    group by
+        product_created_date,product_updated_date,product_id,simple_or_bundle,is_product_active,ean,colisage,split_species,surtype,type,manufacturer,split_suppliers,brand,split_attributs_sante
+)
+, matched_product_attributes_layer2 as (
+    select
+        product_created_date,
+        product_updated_date,
+        product_id,
+        simple_or_bundle,
+        is_product_active,
+        ean,
+        colisage,
+        string_agg(distinct specie.label, ',') as species,
+        surtype,
+        type,
+        manufacturer,
+        string_agg(distinct supplier.label, ',') as suppliers,
+        brand,
+        string_agg(distinct attrib_sante.label, ',') as attributs_sante,
+        is_brand_active
+    from
+        matched_product_attributes_layer1,
+        unnest(if(split_species is null, [''], split_species)) specie_ids,
+        unnest(if(split_suppliers is null, [''], split_suppliers)) supplier_ids,
+        unnest(if(split_attributs_sante is null, [''], split_attributs_sante)) attribut_sante_ids
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'specie'
+        ) specie on specie_ids = specie.value
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'supplier'
+        ) supplier on supplier_ids = supplier.value
+        left join (
+            select
+                o.label,
+                o.value
+            from
+                ${ref("raw_magento_product_attributes")},
+                unnest(options) as o
+            where
+                attribute_code = 'objectif_sante'
+        ) attrib_sante on attribut_sante_ids = attrib_sante.value
+    group by
+        product_created_date,product_updated_date,product_id,simple_or_bundle,is_product_active,ean,colisage,surtype,type,manufacturer,brand,is_brand_active
+)
+, all_orders as (
+select
+    date(o.created_at) as date,
+    date(o.updated_at) as updated_date,
+    o.store_id,
+    cast(entity_id as string) as order_id,
+    cast(o.customer_id as string) as customer_id,
+    c.date as customer_created_date,
+    c.updated_date as customer_updated_date,
+    customer_firstname as firstname,
+    customer_lastname as lastname,
+    customer_email as email,
+    c.telephone,
+    c.city,
+    c.region,
+    c.country,
+    case when regexp_contains(
+        lower(shipping_description),
+        r'\b(colissimo|poste|lettre)\b'
+    ) then 'La Poste' when regexp_contains(lower(shipping_description), r'\b(royal mail)\b') then 'Royal Mail' when regexp_contains(lower(shipping_description), r'\b(post nl)\b') then 'Post NL' when regexp_contains(lower(shipping_description), r'\b(gls)\b') then 'GLS' when regexp_contains(lower(shipping_description), r'\b(dpd)\b') then 'DPD' when regexp_contains(lower(shipping_description), r'\b(ups)\b') then 'UPS' when regexp_contains(
+        lower(shipping_description),
+        r'\b(colis prive)\b'
+    ) then 'Colis Privé' when regexp_contains(lower(shipping_description), r'\b(inpost)\b') then 'Mondial Relay' when regexp_contains(lower(shipping_description), r'\b(kiala)\b') then 'Kiala' when regexp_contains(lower(shipping_description), r'\b(asendia)\b') then 'Asendia' else 'undefined' end as carrier,
+    payment.method as payment_method,
+    base_currency_code as currency_code,
+    date(
+        max(o.created_at) over (partition by o.customer_id)
+    ) as customer_last_order_date,
+    cast(i.product_id as string) as product_id,
+    i.sku as product_sku,
+    i.name as product_name,
+    pr.product_created_date,
+    pr.product_updated_date,
+    pr.simple_or_bundle,
+    pr.is_product_active,
+    pr.ean,
+    pr.colisage,
+    pr.species,
+    pr.surtype,
+    pr.type,
+    pr.manufacturer,
+    pr.suppliers,
+    pr.brand,
+    pr.is_brand_active,
+    pr.attributs_sante,
+    cast(
+        ifnull(i.qty_ordered, 0) - ifnull(i.qty_returned, 0) as int
+    ) as item_total_quantity,
+    round(
+        (ifnull(i.base_cost, 0)) *(
+            ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+        ),
+        2
+    ) as item_total_cost,
+    round(
+        (ifnull(i.base_price, 0)) *(
+            ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+        ) - ifnull(i.base_discount_amount, 0) + ifnull(i.base_discount_refunded, 0),
+        2
+    ) as item_total_revenue,
+    case when (ifnull(i.base_price, 0)) *(
+        ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+    ) - ifnull(i.base_discount_amount, 0) + ifnull(i.base_discount_refunded, 0) > 0
+    and (
+        (ifnull(i.base_cost, 0)) *(
+            ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+        )
+    ) > 0 then round(
+        safe_divide(
+            (
+                (ifnull(i.base_price, 0)) *(
+                    ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+                ) - ifnull(i.base_discount_amount, 0) + ifnull(i.base_discount_refunded, 0)
+            ) -(
+                (ifnull(i.base_cost, 0)) *(
+                    ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+                )
+            ),(
+                (ifnull(i.base_price, 0)) *(
+                    ifnull(i.qty_ordered, 0) - ifnull(i.qty_refunded, 0)
+                ) - ifnull(i.base_discount_amount, 0) + ifnull(i.base_discount_refunded, 0)
+            )
+        ),
+        2
+    ) else null end as item_margin
+from
+    ${ref("raw_magento_orders")} o,
+    unnest(items) i
+    left join matched_product_attributes_layer2 pr using (product_id)
+    left join ${ref("preanalysis_customers")} c on cast(o.customer_id as string) = c.customer_id
+where
+    o.store_id in (1, 15)
+    and
+    (o.status = 'complete' or o.status like '%processing%')
+)
+
+select
+    * except (store_id),
+    case when store_id = 1 then 'LCDA' when store_id = 15 then 'Dogtore IT' else null end as store,
+from
+    all_orders
+where
+    email not like '%amazon%'
+
+union all
+
+select
+    *  except (store_id),
+    'Amazon' as store,
+from
+    all_orders
+where
+    email like '%amazon%'
