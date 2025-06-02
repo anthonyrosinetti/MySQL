@@ -66,7 +66,7 @@ with magento_products as (
 
 matched_product_attributes as (
     select distinct
-        product_id,
+        cast(product_id as int64) as product_id,
         product_sku,
         product_name,
         product_type,
@@ -143,12 +143,16 @@ matched_product_attributes as (
 
 new_products_bought_current as (
   select  
-    *  except (sku,activation_date),
-    case when date <= date_add(pad.activation_date, interval 30 day) then true else false end as new_product_bought
+    p.*,
+    case when date >= date(datetime(h1._ingestion_timestamp)) and date <= date(datetime(h2._ingestion_timestamp)) then true else false end as new_product_bought
   from
     `amasty-data.analysis.analysis_magento_date_to_product` p
     left join
-    `amasty-data.config.products_activation_dates` pad on pad.sku = p.product_sku 
+    `amasty-data.analysis.products_new_label_history` h1
+    on cast(p.product_id as int64) = h1.product_id and h1.is_new_label
+    left join
+    `amasty-data.analysis.products_new_label_history` h2
+    on cast(p.product_id as int64) = h2.product_id and h2.is_new_label = False
   where
 	  date between PARSE_DATE('%Y%m%d',  @DS_START_DATE) AND PARSE_DATE('%Y%m%d',  @DS_END_DATE)
     and
@@ -158,8 +162,10 @@ new_products_bought_current as (
 union_new_global as (
   select
     date,
-    pad.sku,
+    product_sku,
     '' as billing_country,
+	'' as status,
+    '' as gender,
     cast(product_id as string) as product_id,
     '' as product_name,
     product_type,
@@ -173,7 +179,7 @@ union_new_global as (
     0 as item_total_quantity,
     0 as item_total_revenue_ttc,
     0 as item_total_revenue_ht,
-    count(distinct pad.sku) as created_skus,
+    count(distinct h.product_id) as created_skus,
     'new_current_created' as scope
   from
     unnest(
@@ -183,11 +189,11 @@ union_new_global as (
       )
     ) date
     left join
-    `amasty-data.config.products_activation_dates` pad
-    on date = pad.activation_date
-    left join matched_product_attributes on date = date and sku = product_sku
+    `amasty-data.analysis.products_new_label_history` h
+    on date = date(datetime(h._ingestion_timestamp)) and is_new_label
+    left join matched_product_attributes using (product_id)
     group by 
-      date, sku, billing_country, product_id, product_type, is_new, matiere, famille, ss_famille, famille_commerciale, collection, bundle_type, item_total_quantity, item_total_revenue_ttc, item_total_revenue_ht
+      date, product_sku, billing_country, product_id, product_type, is_new, matiere, famille, ss_famille, famille_commerciale, collection, bundle_type, item_total_quantity, item_total_revenue_ttc, item_total_revenue_ht
   
     union all
 
@@ -195,6 +201,8 @@ union_new_global as (
     date,
     np.product_sku,
     np.billing_country,
+    np.status,
+  	np.gender,
     np.product_id,
     np.product_name,
     np.product_type,
@@ -233,6 +241,8 @@ union_new_global as (
     date,
     np.product_sku,
     np.billing_country,
+    np.status,
+  	np.gender,  
     np.product_id,
     np.product_name,
     np.product_type,
@@ -271,7 +281,9 @@ union_new_global as (
 select
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
@@ -294,7 +306,9 @@ where
 group by
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
@@ -309,7 +323,9 @@ union all
 select
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
@@ -332,7 +348,9 @@ where
 group by
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
@@ -347,7 +365,9 @@ union all
 select
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
@@ -370,7 +390,9 @@ where
 group by
   date,
   billing_country,
-  sku,
+  status,
+  gender,
+  product_sku,
   product_name,
   matiere,
   famille,
