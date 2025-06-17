@@ -40,7 +40,7 @@ customers_first_order_dates as (
     select distinct
         customer_id,
         date(
-            min(created_at) over (partition by customer_id)
+            datetime_add(datetime(min(created_at) over (partition by customer_id)),interval 2 hour)
         ) as customer_first_order_date
     from
         ${ref("raw_magento_orders")}
@@ -245,8 +245,8 @@ orders_with_options as (
     ${ref("raw_magento_orders")} o,
     unnest(items) i,
     unnest(i.product_option.extension_attributes.custom_options) c
-  where
-    i.product_id != 5 -- Carte cadeau
+  --where
+    --i.product_id != 5 -- Carte cadeau
 ),
 
 orders_with_graved_products as (
@@ -256,6 +256,7 @@ orders_with_graved_products as (
             when po.product_type = 'simple' then o.sku
             when po.product_type = 'configurable' then pr.product_sku
             when po.product_type = 'bundle' then regexp_extract(o.sku, r'^([A-Z0-9]+)')
+            else pr.product_sku
         end as product_sku,
         max(case when option_value is not null and type = 'field' then true else false end) as product_word_engraved,
         max(case when option_value is not null and type  = 'symbol' then true else false end) as product_symbol_engraved
@@ -270,14 +271,14 @@ orders_with_graved_products as (
 
 all_orders as (
     select
-        date(datetime(o.created_at)) as date,
+        date(datetime_add(datetime(o.created_at),interval 2 hour)) as date,
         increment_id as order_id,
         o.store_id,
         cmc.country_name as billing_country,
         status,
         cast(o.customer_id as string) as customer_id,
         customer_email as email,
-        c.gender,
+        ifnull(c.gender,'-') as gender,
         c.age_range,
         cfo.customer_first_order_date,
         cast(i.product_id as string) as product_id,
@@ -285,38 +286,34 @@ all_orders as (
             when pr.product_type = 'simple' then i.sku
             when pr.product_type = 'configurable' then pr.product_sku
             when pr.product_type = 'bundle' then regexp_extract(i.sku, r'^([A-Z0-9]+)')
+            else pr.product_sku
         end as product_sku,
-        i.name as product_name,
+        pr.product_name,
         pr.product_type,
         pr.is_new,
         pr.is_gravable,
         ifnull(ogp.product_word_engraved,false) as product_word_engraved,
         ifnull(ogp.product_symbol_engraved,false) as product_symbol_engraved,     
-        pr.matiere,
-        pr.famille,
-        pr.ss_famille,
-        pr.famille_commerciale,
-        pr.collection,
+        ifnull(pr.matiere,'-') as matiere,
+        ifnull(case
+            when lower(pr.ss_famille) like '%composition%' then 'Compositions'
+            when pr.product_type = 'amgiftcard' then 'Cartes cadeau'
+            else pr.famille
+        end,'-') as famille,
+        ifnull(pr.ss_famille,'-') as ss_famille,
+        case
+          when pr.famille_commerciale is null and pr.famille != 'Bases' then 'Femme'
+          else ifnull(pr.famille_commerciale,'-')
+        end as famille_commerciale,
+        ifnull(pr.collection,'-') as collection,
         case
             when pr.product_type in ('simple','configurable') then 'Produit fini'
             when pr.bundle_type = 'composition' then 'Composition'
             when pr.bundle_type = 'montage' then 'Montage'
         end as bundle_type,
-        cast(
-            ifnull(i.qty_invoiced, 0) - ifnull(i.qty_refunded, 0) as int
-        ) as item_total_quantity,
-        round(
-            (ifnull(i.base_price_incl_tax, 0)) *(
-                ifnull(i.qty_invoiced, 0) - ifnull(i.qty_refunded, 0)
-            ) - ifnull(i.base_discount_amount, 0) + ifnull(i.base_discount_refunded, 0),
-            2
-        ) as item_total_revenue_ttc,
-        round(
-            (ifnull(i.base_price, 0)) *(
-                ifnull(i.qty_invoiced, 0) - ifnull(i.qty_refunded, 0)
-            ) - (ifnull(i.base_discount_amount, 0) - ifnull(i.base_discount_tax_compensation_amount, 0)) + (ifnull(i.base_discount_refunded, 0) - ifnull(i.base_discount_tax_compensation_refunded, 0)),
-            2
-        ) as item_total_revenue_ht
+        cast(ifnull(i.qty_ordered, 0) as int) as item_total_quantity,
+        round(ifnull(i.base_price_incl_tax, 0) * ifnull(i.qty_ordered, 0),2) as item_total_revenue_ttc,
+        round(ifnull(i.base_price, 0) * ifnull(i.qty_ordered, 0),2) as item_total_revenue_ht
     from
         ${ref("raw_magento_orders")} o,
         unnest(items) i
@@ -326,8 +323,8 @@ all_orders as (
         left join customers_first_order_dates cfo using (customer_id)
         left join country_mapping_codes cmc on o.billing_address.
 country_id = alpha2_code
-  where
-    i.product_id != 5 -- Carte cadeau
+  --where
+    --i.product_id != 5 -- Carte cadeau
 ),
 
 engraved_orders as (
