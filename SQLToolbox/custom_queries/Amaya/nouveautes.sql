@@ -144,7 +144,10 @@ matched_product_attributes as (
 new_products_bought_current as (
   select  
     p.*,
-    case when date >= date(datetime(h1._ingestion_timestamp)) and date <= date(datetime(h2._ingestion_timestamp)) then true else false end as new_product_bought
+    case
+  		when date >= date(datetime(h1._ingestion_timestamp)) and date <= date(datetime(h2._ingestion_timestamp))
+  			 or date >= date(datetime(h1._ingestion_timestamp)) and h2._ingestion_timestamp is null
+ 		then true else false end as new_product_bought
   from
     `amasty-data.analysis.analysis_magento_date_to_product` p
     left join
@@ -163,11 +166,11 @@ union_new_global as (
   select
     date,
     product_sku,
-    '' as billing_country,
-	'' as status,
-    '' as gender,
+    'France' as billing_country,
+	'complete' as status,
+    'Female' as gender,
     cast(product_id as string) as product_id,
-    '' as product_name,
+    product_name,
     product_type,
     is_new,
     matiere,
@@ -193,7 +196,7 @@ union_new_global as (
     on date = date(datetime(h._ingestion_timestamp)) and is_new_label
     left join matched_product_attributes using (product_id)
     group by 
-      date, product_sku, billing_country, product_id, product_type, is_new, matiere, famille, ss_famille, famille_commerciale, collection, bundle_type, item_total_quantity, item_total_revenue_ttc, item_total_revenue_ht
+      date, product_sku, product_id, product_name, product_type, is_new, matiere, famille, ss_famille, famille_commerciale, collection, bundle_type, item_total_quantity, item_total_revenue_ttc, item_total_revenue_ht, scope
   
     union all
 
