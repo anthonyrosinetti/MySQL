@@ -1,0 +1,7 @@
+CASE
+WHEN Date granularity = "Day" THEN TODATE(date,"%Y-%m-%d")
+WHEN Date granularity = "Week" THEN TODATE(DATETIME_TRUNC(date, WEEK), "%Y-%m-%d")
+WHEN Date granularity = "Month" THEN TODATE(date,"%Y-%m")
+WHEN Date granularity = "Quarter" THEN CONCAT(YEAR(date), " - T", QUARTER(date))
+WHEN Date granularity = "Year" then TODATE(date,"%Y")
+END
