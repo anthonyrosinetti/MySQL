@@ -2,13 +2,14 @@
     materialized="incremental",
     incremental_strategy="insert_overwrite",
     partition_by={
-        "field": "date",
+        "field": "date_report",
         "data_type": "date",
         "granularity": "day"
     }
 ) }}
 
-WITH layer_1 AS (
+WITH ga4_events AS (
+    -- Extracting data from the nested event params
     SELECT
         TIMESTAMP_MICROS(event_timestamp) AS event_timestamp,
         user_pseudo_id,
@@ -35,14 +36,18 @@ WITH layer_1 AS (
         {{ ref('stg_google_analytics_4_events') }}
     WHERE
         user_pseudo_id IS NOT NULL
-        {% if is_incremental() %} -- Adding an extra day to the date range to consider cross-day session here (but will be removed at the end)
+        {% if is_incremental() %}
+        -- Due to important data volume, using incremental refresh strategy ; data is considered as stable after around 3 days
+        -- Adding an extra day to the date range to consider cross-day session here (but will be removed at the end)
         AND table_suffix_date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 3 + 1 DAY) AND CURRENT_DATE()
         {% endif %}
 ),
 
-session_attributes_l1 AS (
+event_utms_deduplication AS (
     SELECT
-        MIN(event_timestamp) OVER (PARTITION BY user_pseudo_id, session_id) AS session_start_timestamp,
+        -- Keeping only one utm_* version, either from the utm_source event param of the source param (same for all UTMs), as they can sometime be collected in both
+        -- For GCLID & FBCLID, extracting them from the URL (if applicable) if not present in the event param directly
+        MIN(event_timestamp) OVER (PARTITION BY session_id) AS session_start_timestamp,
         user_pseudo_id,
         session_id,
         event_timestamp,
@@ -51,7 +56,7 @@ session_attributes_l1 AS (
         COALESCE(event_param_utm_campaign, event_param_campaign) AS event_param_utm_campaign,
         event_param_utm_id,
         COALESCE(event_param_utm_content, event_param_content) AS event_param_utm_content,
-        COALESCE(event_param_utm_term, event_param_term) AS event_param_term,
+        COALESCE(event_param_utm_term, event_param_term) AS event_param_utm_term,
         COALESCE(event_param_gclid, REGEXP_EXTRACT(page_location, r"[\?&]gclid=([^&]*)")) AS event_param_gclid,
         COALESCE(event_param_fbclid, REGEXP_EXTRACT(page_location, r"[\?&]fbclid=([^&]*)")) AS event_param_fbclid,
         page_location,
@@ -59,15 +64,20 @@ session_attributes_l1 AS (
         collected_traffic_source,
         session_traffic_source_last_click
     FROM
-        layer_1
+        ga4_events
 ),
 
-session_attributes_l2 AS (
+event_final_utms_calculation AS (
     SELECT
         session_start_timestamp,
         user_pseudo_id,
         session_id,
         event_timestamp,
+        -- Keeping only one UTM_* value using all available data:
+        -- (1) if a GCLID is present, putting everything at NULL as it will be decoded separately
+        -- (2) priorising the session scope data automatically collected (collected_traffic_source)
+        -- (3) priorising the manual UTM from event params
+        -- (4) relying on the session traffic source in last resort
         CASE
             WHEN event_param_gclid IS NOT NULL THEN CAST(NULL AS STRING)
             WHEN collected_traffic_source.gclid IS NOT NULL THEN CAST(NULL AS STRING)
@@ -139,15 +149,16 @@ session_attributes_l2 AS (
             WHEN session_traffic_source_last_click.manual_campaign.`source` IS NOT NULL THEN CAST(NULL AS STRING)
             WHEN session_traffic_source_last_click.google_ads_campaign.campaign_id IS NOT NULL THEN CAST(NULL AS STRING)
             WHEN session_traffic_source_last_click.cross_channel_campaign.`source` IS NOT NULL THEN CAST(NULL AS STRING)
-            ELSE fbclid
+            ELSE event_param_fbclid
         END AS fbclid,
         page_location,
         page_referrer,
     FROM
-        session_attributes_l1
+        event_utms_deduplication
 ),
 
-session_attributes_l3 AS (
+session_utm_calculation AS (
+    -- Keeping only the first row for each session - only initial traffic source is used for attribution
     SELECT
         session_start_timestamp,
         user_pseudo_id,
@@ -163,7 +174,7 @@ session_attributes_l3 AS (
         page_location,
         page_referrer,
     FROM
-        session_attributes_l2
+        event_final_utms_calculation
     QUALIFY
         ROW_NUMBER() OVER (
             PARTITION BY user_pseudo_id, session_id
@@ -171,33 +182,34 @@ session_attributes_l3 AS (
         ) = 1
 ),
 
-session_attributes_l4 AS (
+session_utm_calculation_with_gclid_decoding AS (
+    -- In case we have a gclid, add traffic source details from the Google Ads click model
     SELECT
         ses.session_start_timestamp,
         ses.user_pseudo_id,
         ses.session_id,
         CASE
-            WHEN gclid IS NOT NULL THEN "google"
+            WHEN ses.gclid IS NOT NULL THEN "google"
             ELSE ses.utm_source
         END AS utm_source,
         CASE
-            WHEN gclid IS NOT NULL THEN "cpc"
+            WHEN ses.gclid IS NOT NULL THEN "cpc"
             ELSE ses.utm_medium
         END AS utm_medium,
         CASE
-            WHEN gclid IS NOT NULL THEN gcl.campaign_name
+            WHEN ses.gclid IS NOT NULL THEN gcl.campaign_name
             ELSE ses.utm_campaign
         END AS utm_campaign,
         CASE
-            WHEN gclid IS NOT NULL THEN gcl.campaign_id
+            WHEN ses.gclid IS NOT NULL THEN CAST(gcl.campaign_id AS STRING)
             ELSE ses.utm_id
         END AS utm_id,
         CASE
-            WHEN gclid IS NOT NULL THEN gcl.ad_group_name
+            WHEN ses.gclid IS NOT NULL THEN gcl.ad_group_name
             ELSE ses.utm_content
         END AS utm_content,
         CASE
-            WHEN gclid IS NOT NULL THEN gcl.keyword_name
+            WHEN ses.gclid IS NOT NULL THEN gcl.keyword_name
             ELSE ses.utm_term
         END AS utm_term,
         ses.gclid,
@@ -205,7 +217,7 @@ session_attributes_l4 AS (
         ses.page_location AS landing_page,
         ses.page_referrer AS referrer,
     FROM
-        session_attributes_l3 AS ses
+        session_utm_calculation AS ses
     LEFT JOIN
         {{ ref('fct_google_ads_clicks') }} AS gcl
     ON
@@ -213,12 +225,13 @@ session_attributes_l4 AS (
 )
 
 SELECT
-    DATE(session_start_timestamp) AS date,
+    DATE(session_start_timestamp) AS date_report,
     session_start_timestamp,
     user_pseudo_id,
     session_id,
-    REGEXP_EXTRACT(landing_page, r"^(?:https?:\/\/)?(\/[^?#]*)(?:[?#].*)?$") AS landing_page,
-    REGEXP_EXTRACT(referrer, r"^(?:https?:\/\/)?([^\/]+)(?:\/.*)?$") AS referrer,
+    -- Removing protocol as well as URL parameters / anchors
+    REGEXP_EXTRACT(landing_page, r"^(?:https?://)?[^/]+(/[^?#]*)") AS landing_page,
+    REGEXP_EXTRACT(referrer, r"^(?:https?://)?[^/]+(/[^?#]*)") AS referrer,
     utm_source,
     utm_medium,
     utm_campaign,
@@ -229,9 +242,10 @@ SELECT
     fbclid,
     REGEXP_EXTRACT(landing_page, r"[\?&]r=([^&]*)") AS partner_referral_id,
 FROM
-    session_attributes_l4
+    session_utm_calculation_with_gclid_decoding
 WHERE
     TRUE
-    {% if is_incremental() %} -- Removing cross day session from day before date range
+    {% if is_incremental() %}
+    -- Removing cross day session from day before date range
     AND DATE(session_start_timestamp) BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY) AND CURRENT_DATE()
     {% endif %}
