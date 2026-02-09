@@ -45,7 +45,7 @@ SELECT
     utm_content,
     utm_term,
     referrer,
-    REGEXP_EXTRACT(url, r"^(?:https?:\/\/)?(\/[^?#]*)(?:[?#].*)?$") AS landing_page,
+    REGEXP_EXTRACT(url, r"^(?:https?://)?[^/]+(/[^?#]*)") AS landing_page,
     REGEXP_EXTRACT(url, r"[\?&]gclid=([^&]*)") AS gclid,
     REGEXP_EXTRACT(url, r"[\?&]fbclid=([^&]*)") AS fbclid,
     REGEXP_EXTRACT(url, r"[\?&]r=([^&]*)") AS partner_referral_id
