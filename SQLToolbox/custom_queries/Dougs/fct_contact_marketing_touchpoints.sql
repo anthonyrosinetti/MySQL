@@ -1,5 +1,6 @@
 WITH form_submissions AS (
     SELECT
+        form_id,
         form_submission_id,
         contact_id,
         submission_timestamp,
@@ -24,7 +25,7 @@ WITH form_submissions AS (
         contact_id IS NOT NULL
 ),
 
-hs_contacts_ga_visitors_l1 AS (
+hs_contacts_ga_visitors_gathered AS (
     SELECT DISTINCT
         contact_id,
         ga_visitor_id,
@@ -56,15 +57,28 @@ hs_contacts_ga_visitors_l1 AS (
         {{ ref('stg_airbyte_hubspot_event_signup_web_app') }}
 ),
 
-hs_contacts_ga_visitors_l2 AS (
+hs_contacts_ga_visitors_unique AS (
     SELECT DISTINCT
         contact_id,
         ga_visitor_id,
     FROM
-        hs_contacts_ga_visitors_l1
+        hs_contacts_ga_visitors_gathered
     WHERE
         contact_id IS NOT NULL
         AND ga_visitor_id IS NOT NULL
+),
+
+hs_contacts_first_pages AS (
+    SELECT
+        hs_contact_id AS contact_id,
+        REGEXP_EXTRACT(url, r"^(?:https?://)?[^/]+(/[^?#]*)") AS contact_first_page
+    FROM
+        {{ ref('stg_airbyte_hubspot_event_visited_page') }} AS p
+    QUALIFY
+        ROW_NUMBER() OVER (
+            PARTITION BY hs_contact_id
+            ORDER BY event_timestamp ASC
+        ) = 1        
 ),
 
 all_touchpoints AS (
@@ -74,9 +88,21 @@ all_touchpoints AS (
         CONCAT("HFS-", form_submission_id) AS touchpoint_id,
         submission_timestamp AS touchpoint_timestamp,
         "form_submission" AS web_event_type,
-        utm_source,
-        utm_medium,
-        utm_campaign,
+        CASE
+            WHEN form_id IN ('f27af304-1f3c-45fc-a15b-038cb78cca52',
+    'cd0a1662-864c-4be2-910b-09b879a9ba42') THEN 'standard_tel'
+            ELSE utm_source
+        END AS utm_source,
+        CASE
+            WHEN form_id IN ('f27af304-1f3c-45fc-a15b-038cb78cca52',
+    'cd0a1662-864c-4be2-910b-09b879a9ba42') THEN 'sales'
+            ELSE utm_medium
+        END AS utm_medium,
+        CASE
+            WHEN form_id IN ('f27af304-1f3c-45fc-a15b-038cb78cca52',
+    'cd0a1662-864c-4be2-910b-09b879a9ba42') THEN 'saisie_sales'
+            ELSE utm_campaign
+        END AS utm_campaign,
         utm_id,
         utm_content,
         utm_term,
@@ -198,13 +224,14 @@ all_touchpoints AS (
     FROM
         {{ ref('fct_google_analytics_4_sessions') }} AS sess
     INNER JOIN
-        hs_contacts_ga_visitors_l2 AS hsga
+        hs_contacts_ga_visitors_unique AS hsga
     ON
         sess.user_pseudo_id = hsga.ga_visitor_id
 )
 
 SELECT
-    contact_id,
+    tch.contact_id,
+    fp.contact_first_page,
     touchpoint_type,
     touchpoint_id,
     touchpoint_timestamp,
@@ -284,3 +311,7 @@ LEFT JOIN
     {{ ref('fct_google_ads_clicks') }} AS gcl
 ON
     tch.gclid = gcl.gclid
+LEFT JOIN
+    hs_contacts_first_pages fp
+USING
+    (contact_id)
