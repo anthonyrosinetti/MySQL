@@ -87,16 +87,33 @@ indicators_from_all_sources AS (
         lost_reason,
         contact_type,
         treatment_type,
-        first_touchpoint_source_name,
-        first_touchpoint_channel,
-        first_touchpoint_campaign_group,
-        first_touchpoint_term,
---        first_touchpoint_page,        
-        first_form_source_name,
-        first_form_channel,
-        first_form_campaign_group,
-        first_form_term,
---        first_form_page,        
+        pre_conversion_touchpoints,
+        pre_conversion_forms,
+        model_type,    
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_source_name
+            WHEN model_type = "first_form" THEN first_form_source_name
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_source_name
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_source_name
+        END AS source_name,
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_channel
+            WHEN model_type = "first_form" THEN first_form_channel
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_channel
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_channel
+        END AS channel,
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_campaign_group
+            WHEN model_type = "first_form" THEN first_form_campaign_group
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_campaign_group
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_campaign_group
+        END AS campaign_group, 
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_term
+            WHEN model_type = "first_form" THEN first_form_term
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_term
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_term
+        END AS term,               
         pack_choice,
         CAST(NULL AS STRING) AS prestation_name,
         CAST(NULL AS STRING) AS prestation_category,
@@ -209,8 +226,300 @@ indicators_from_all_sources AS (
         "losts_by_lead_date",
         "losts_by_lost_date",
         "reactivations_by_reactivation_date"]) AS calculation_type
+    CROSS JOIN
+        UNNEST(["first_touch",
+        "first_form",
+        "lead_last_touch",
+        "mql_last_touch"
+        ]) AS model_type        
     WHERE
         event_type IS NULL
+
+    UNION ALL
+
+    SELECT
+        contact_id,
+        dougs_user_id,
+        company_id,
+        dougs_company_id,
+        gender,
+        age_range,
+        eligible,
+        legal_form,
+        ape_activity_name,
+        activity,
+        first_conversion_form,
+        first_conversion_form_category,
+        first_conversion_form_type,
+        first_page,
+        contact_category,
+        lost_reason,
+        contact_type,
+        treatment_type,
+        pre_conversion_touchpoints,
+        pre_conversion_forms,     
+        "lead_linear" AS model_type,
+        l.lead_linear_source_name AS source_name,
+        l.lead_linear_channel AS channel,
+        l.lead_linear_campaign_group AS campaign_group,
+        l.lead_linear_utm_term AS term,        
+        pack_choice,
+        CAST(NULL AS STRING) AS prestation_name,
+        CAST(NULL AS STRING) AS prestation_category,
+        CAST(NULL AS STRING) AS data_prestation_category,
+        CASE
+            WHEN calculation_type LIKE "%_by_lead_date" THEN date_lead
+            WHEN calculation_type LIKE "%_by_mql_date" THEN date_mql
+            WHEN calculation_type LIKE "%_by_opportunity_date" THEN date_opportunity
+            WHEN calculation_type LIKE "%_by_signup_invoicing_date" THEN date_signup_invoicing
+            WHEN calculation_type LIKE "%_by_won_invoicing_date" THEN date_won_invoicing
+            WHEN calculation_type LIKE "%_by_won_creation_date" THEN date_won_creation
+            WHEN calculation_type LIKE "%_by_won_accounting_date" THEN date_won_accounting
+            WHEN calculation_type LIKE "%_by_lost_date" THEN date_lost
+            WHEN calculation_type LIKE "%_by_reactivation_date" THEN LEAST(date_won_invoicing,date_won_creation,date_won_accounting)
+        END AS date_cohort,
+        CASE
+            WHEN calculation_type LIKE "leads_by_%" THEN date_lead
+            WHEN calculation_type LIKE "mqls_by_%" THEN date_mql
+            WHEN calculation_type LIKE "opportunities_by_%" THEN date_opportunity
+            WHEN calculation_type LIKE "signups_invoicing_by_%" THEN date_signup_invoicing
+            WHEN calculation_type LIKE "clients_invoicing_by_%" THEN date_won_invoicing
+            WHEN calculation_type LIKE "clients_creation_by_%" THEN date_won_creation
+            WHEN calculation_type LIKE "clients_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_direct_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_invoicing_to_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_crea_to_accounting_by_%" THEN date_won_invoicing
+            WHEN calculation_type LIKE "losts_by_%" THEN date_lost
+            WHEN calculation_type LIKE "reactivations_by_%" THEN LEAST(date_won_invoicing,date_won_creation,date_won_accounting)
+        END AS date_actual,
+        CASE WHEN calculation_type = "leads_by_lead_date" AND date_lead IS NOT NULL THEN l.lead_linear_weight END AS leads_by_lead_date,
+        CASE WHEN calculation_type = "mqls_by_lead_date" AND date_mql IS NOT NULL THEN l.lead_linear_weight END AS mqls_by_lead_date,
+        CASE WHEN calculation_type = "mqls_by_signup_invoicing_date" AND date_mql IS NOT NULL THEN l.lead_linear_weight END AS mqls_by_signup_invoicing_date,
+        CASE WHEN calculation_type = "mqls_by_mql_date" AND date_mql IS NOT NULL THEN l.lead_linear_weight END AS mqls_by_mql_date,
+        CASE WHEN calculation_type = "opportunities_by_mql_date" AND date_opportunity IS NOT NULL THEN l.lead_linear_weight END AS opportunities_by_mql_date,
+        CASE WHEN calculation_type = "opportunities_by_opportunity_date" AND date_opportunity IS NOT NULL THEN l.lead_linear_weight END AS opportunities_by_opportunity_date,
+        CASE WHEN calculation_type = "signups_invoicing_by_signup_invoicing_date" AND date_signup_invoicing IS NOT NULL THEN l.lead_linear_weight END AS signups_invoicing_by_signup_invoicing_date,
+        -- CASE WHEN calculation_type = "clients_by_lead_date" AND date_won IS NOT NULL THEN l.lead_linear_weight END AS clients_by_lead_date,
+        -- CASE WHEN calculation_type = "clients_by_mql_date" AND date_won IS NOT NULL THEN l.lead_linear_weight END AS clients_by_mql_date,
+        -- CASE WHEN calculation_type = "clients_by_won_date" AND date_won IS NOT NULL THEN l.lead_linear_weight END AS clients_by_won_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_lead_date" AND date_won_invoicing IS NOT NULL THEN l.lead_linear_weight END AS clients_invoicing_by_lead_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_mql_date" AND date_won_invoicing IS NOT NULL THEN l.lead_linear_weight END AS clients_invoicing_by_mql_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_won_invoicing_date" AND date_won_invoicing IS NOT NULL THEN l.lead_linear_weight END AS clients_invoicing_by_won_date,
+        CASE WHEN calculation_type = "clients_creation_by_lead_date" AND date_won_creation IS NOT NULL THEN l.lead_linear_weight END AS clients_creation_by_lead_date,
+        CASE WHEN calculation_type = "clients_creation_by_mql_date" AND date_won_creation IS NOT NULL THEN l.lead_linear_weight END AS clients_creation_by_mql_date,
+        CASE WHEN calculation_type = "clients_creation_by_opportunity_date" AND date_won_creation IS NOT NULL THEN l.lead_linear_weight END AS clients_creation_by_opportunity_date,
+        CASE WHEN calculation_type = "clients_creation_by_won_creation_date" AND date_won_creation IS NOT NULL THEN l.lead_linear_weight END AS clients_creation_by_won_date,
+        CASE WHEN calculation_type = "clients_accounting_by_lead_date" AND date_won_accounting IS NOT NULL THEN l.lead_linear_weight END AS clients_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_accounting_by_mql_date" AND date_won_accounting IS NOT NULL THEN l.lead_linear_weight END AS clients_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL THEN l.lead_linear_weight END AS clients_accounting_by_won_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_direct_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_direct_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_direct_accounting_by_won_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_invoicing_to_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_signup_invoicing_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_invoicing_to_accounting_by_signup_invoicing_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_invoicing_to_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN l.lead_linear_weight END AS clients_invoicing_to_accounting_by_won_date,           
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN l.lead_linear_weight END AS clients_crea_to_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN l.lead_linear_weight END AS clients_crea_to_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_won_creation_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN l.lead_linear_weight END AS clients_crea_to_accounting_by_won_creation_date,                
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN l.lead_linear_weight END AS clients_crea_to_accounting_by_won_date,                
+        CASE WHEN calculation_type = "losts_by_lead_date" AND date_lost IS NOT NULL THEN l.lead_linear_weight END AS losts_by_lead_date,
+        CASE WHEN calculation_type = "losts_by_lost_date" AND date_lost IS NOT NULL THEN l.lead_linear_weight END AS losts_by_lost_date,
+        CASE WHEN calculation_type = "reactivations_by_reactivation_date" AND date_lost < LEAST(date_won_invoicing,date_won_creation,date_won_accounting) THEN l.lead_linear_weight END AS reactivations_by_reactivation_date,
+        CAST(NULL AS FLOAT64) AS prestation_amount,
+        CAST(NULL AS INT64) AS impressions,
+        CAST(NULL AS INT64) AS clicks,
+        CAST(NULL AS FLOAT64) AS spend,
+        CAST(NULL AS INT64) AS sessions,
+        CAST(NULL AS INT64) AS accountings_goal,
+        CAST(NULL AS INT64) AS crea_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS invoicing_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS direct_accountings_goal,
+        CAST(NULL AS INT64) AS creations_goal,
+        CAST(NULL AS INT64) AS opportunities_goal,
+        CAST(NULL AS INT64) AS mqls_goal,
+        CAST(NULL AS INT64) AS leads_goal,
+        CAST(NULL AS INT64) AS spend_goal,
+        CAST(NULL AS FLOAT64) AS accounting_revenues_goal
+    FROM
+        {{ ref('int_attributed_contact_revenues') }},UNNEST(lead_linear) l
+    CROSS JOIN
+        UNNEST(["leads_by_lead_date",
+        "mqls_by_lead_date",
+        "mqls_by_signup_invoicing_date",
+        "mqls_by_mql_date",
+        "opportunities_by_mql_date",
+        "opportunities_by_opportunity_date",
+        "signups_invoicing_by_signup_invoicing_date",
+        "clients_invoicing_by_lead_date",
+        "clients_invoicing_by_mql_date",
+        "clients_invoicing_by_won_invoicing_date",
+        "clients_creation_by_lead_date",
+        "clients_creation_by_mql_date",
+        "clients_creation_by_opportunity_date",
+        "clients_creation_by_won_creation_date",
+        "clients_accounting_by_lead_date",
+        "clients_accounting_by_mql_date",
+        "clients_accounting_by_won_accounting_date",
+        "clients_direct_accounting_by_lead_date",
+        "clients_direct_accounting_by_mql_date",
+        "clients_direct_accounting_by_won_accounting_date",
+        "clients_invoicing_to_accounting_by_lead_date",
+        "clients_invoicing_to_accounting_by_signup_invoicing_date",
+        "clients_invoicing_to_accounting_by_mql_date",
+        "clients_invoicing_to_accounting_by_won_accounting_date",
+        "clients_crea_to_accounting_by_lead_date",
+        "clients_crea_to_accounting_by_mql_date",
+        "clients_crea_to_accounting_by_won_creation_date",
+        "clients_crea_to_accounting_by_won_accounting_date",
+        "losts_by_lead_date",
+        "losts_by_lost_date",
+        "reactivations_by_reactivation_date"]) AS calculation_type
+    WHERE
+        event_type IS NULL
+
+    UNION ALL
+
+    SELECT
+        contact_id,
+        dougs_user_id,
+        company_id,
+        dougs_company_id,
+        gender,
+        age_range,
+        eligible,
+        legal_form,
+        ape_activity_name,
+        activity,
+        first_conversion_form,
+        first_conversion_form_category,
+        first_conversion_form_type,
+        first_page,
+        contact_category,
+        lost_reason,
+        contact_type,
+        treatment_type,
+        pre_conversion_touchpoints,
+        pre_conversion_forms,
+        "mql_linear" AS model_type,
+        m.mql_linear_source_name AS source_name,
+        m.mql_linear_channel AS channel,
+        m.mql_linear_campaign_group AS campaign_group,
+        m.mql_linear_utm_term AS term,
+        pack_choice,
+        CAST(NULL AS STRING) AS prestation_name,
+        CAST(NULL AS STRING) AS prestation_category,
+        CAST(NULL AS STRING) AS data_prestation_category,
+        CASE
+            WHEN calculation_type LIKE "%_by_lead_date" THEN date_lead
+            WHEN calculation_type LIKE "%_by_mql_date" THEN date_mql
+            WHEN calculation_type LIKE "%_by_opportunity_date" THEN date_opportunity
+            WHEN calculation_type LIKE "%_by_signup_invoicing_date" THEN date_signup_invoicing
+            WHEN calculation_type LIKE "%_by_won_invoicing_date" THEN date_won_invoicing
+            WHEN calculation_type LIKE "%_by_won_creation_date" THEN date_won_creation
+            WHEN calculation_type LIKE "%_by_won_accounting_date" THEN date_won_accounting
+            WHEN calculation_type LIKE "%_by_lost_date" THEN date_lost
+            WHEN calculation_type LIKE "%_by_reactivation_date" THEN LEAST(date_won_invoicing,date_won_creation,date_won_accounting)
+        END AS date_cohort,
+        CASE
+            WHEN calculation_type LIKE "leads_by_%" THEN date_lead
+            WHEN calculation_type LIKE "mqls_by_%" THEN date_mql
+            WHEN calculation_type LIKE "opportunities_by_%" THEN date_opportunity
+            WHEN calculation_type LIKE "signups_invoicing_by_%" THEN date_signup_invoicing
+            WHEN calculation_type LIKE "clients_invoicing_by_%" THEN date_won_invoicing
+            WHEN calculation_type LIKE "clients_creation_by_%" THEN date_won_creation
+            WHEN calculation_type LIKE "clients_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_direct_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_invoicing_to_accounting_by_%" THEN date_won_accounting
+            WHEN calculation_type LIKE "clients_crea_to_accounting_by_%" THEN date_won_invoicing
+            WHEN calculation_type LIKE "losts_by_%" THEN date_lost
+            WHEN calculation_type LIKE "reactivations_by_%" THEN LEAST(date_won_invoicing,date_won_creation,date_won_accounting)
+        END AS date_actual,
+        CASE WHEN calculation_type = "leads_by_lead_date" AND date_lead IS NOT NULL THEN m.mql_linear_weight END AS leads_by_lead_date,
+        CASE WHEN calculation_type = "mqls_by_lead_date" AND date_mql IS NOT NULL THEN m.mql_linear_weight END AS mqls_by_lead_date,
+        CASE WHEN calculation_type = "mqls_by_signup_invoicing_date" AND date_mql IS NOT NULL THEN m.mql_linear_weight END AS mqls_by_signup_invoicing_date,
+        CASE WHEN calculation_type = "mqls_by_mql_date" AND date_mql IS NOT NULL THEN m.mql_linear_weight END AS mqls_by_mql_date,
+        CASE WHEN calculation_type = "opportunities_by_mql_date" AND date_opportunity IS NOT NULL THEN m.mql_linear_weight END AS opportunities_by_mql_date,
+        CASE WHEN calculation_type = "opportunities_by_opportunity_date" AND date_opportunity IS NOT NULL THEN m.mql_linear_weight END AS opportunities_by_opportunity_date,
+        CASE WHEN calculation_type = "signups_invoicing_by_signup_invoicing_date" AND date_signup_invoicing IS NOT NULL THEN m.mql_linear_weight END AS signups_invoicing_by_signup_invoicing_date,
+        -- CASE WHEN calculation_type = "clients_by_lead_date" AND date_won IS NOT NULL THEN m.mql_linear_weight END AS clients_by_lead_date,
+        -- CASE WHEN calculation_type = "clients_by_mql_date" AND date_won IS NOT NULL THEN m.mql_linear_weight END AS clients_by_mql_date,
+        -- CASE WHEN calculation_type = "clients_by_won_date" AND date_won IS NOT NULL THEN m.mql_linear_weight END AS clients_by_won_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_lead_date" AND date_won_invoicing IS NOT NULL THEN m.mql_linear_weight END AS clients_invoicing_by_lead_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_mql_date" AND date_won_invoicing IS NOT NULL THEN m.mql_linear_weight END AS clients_invoicing_by_mql_date,
+        CASE WHEN calculation_type = "clients_invoicing_by_won_invoicing_date" AND date_won_invoicing IS NOT NULL THEN m.mql_linear_weight END AS clients_invoicing_by_won_date,
+        CASE WHEN calculation_type = "clients_creation_by_lead_date" AND date_won_creation IS NOT NULL THEN m.mql_linear_weight END AS clients_creation_by_lead_date,
+        CASE WHEN calculation_type = "clients_creation_by_mql_date" AND date_won_creation IS NOT NULL THEN m.mql_linear_weight END AS clients_creation_by_mql_date,
+        CASE WHEN calculation_type = "clients_creation_by_opportunity_date" AND date_won_creation IS NOT NULL THEN m.mql_linear_weight END AS clients_creation_by_opportunity_date,
+        CASE WHEN calculation_type = "clients_creation_by_won_creation_date" AND date_won_creation IS NOT NULL THEN m.mql_linear_weight END AS clients_creation_by_won_date,
+        CASE WHEN calculation_type = "clients_accounting_by_lead_date" AND date_won_accounting IS NOT NULL THEN m.mql_linear_weight END AS clients_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_accounting_by_mql_date" AND date_won_accounting IS NOT NULL THEN m.mql_linear_weight END AS clients_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL THEN m.mql_linear_weight END AS clients_accounting_by_won_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_direct_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_direct_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_direct_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND (date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting) AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_direct_accounting_by_won_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_invoicing_to_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_signup_invoicing_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_invoicing_to_accounting_by_signup_invoicing_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_invoicing_to_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_invoicing_to_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting) THEN m.mql_linear_weight END AS clients_invoicing_to_accounting_by_won_date,           
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_lead_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN m.mql_linear_weight END AS clients_crea_to_accounting_by_lead_date,
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_mql_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN m.mql_linear_weight END AS clients_crea_to_accounting_by_mql_date,
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_won_creation_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN m.mql_linear_weight END AS clients_crea_to_accounting_by_won_creation_date,                
+        CASE WHEN calculation_type = "clients_crea_to_accounting_by_won_accounting_date" AND date_won_accounting IS NOT NULL AND date_won_creation <= date_won_accounting THEN m.mql_linear_weight END AS clients_crea_to_accounting_by_won_date,                
+        CASE WHEN calculation_type = "losts_by_lead_date" AND date_lost IS NOT NULL THEN m.mql_linear_weight END AS losts_by_lead_date,
+        CASE WHEN calculation_type = "losts_by_lost_date" AND date_lost IS NOT NULL THEN m.mql_linear_weight END AS losts_by_lost_date,
+        CASE WHEN calculation_type = "reactivations_by_reactivation_date" AND date_lost < LEAST(date_won_invoicing,date_won_creation,date_won_accounting) THEN m.mql_linear_weight END AS reactivations_by_reactivation_date,
+        CAST(NULL AS FLOAT64) AS prestation_amount,
+        CAST(NULL AS INT64) AS impressions,
+        CAST(NULL AS INT64) AS clicks,
+        CAST(NULL AS FLOAT64) AS spend,
+        CAST(NULL AS INT64) AS sessions,
+        CAST(NULL AS INT64) AS accountings_goal,
+        CAST(NULL AS INT64) AS crea_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS invoicing_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS direct_accountings_goal,
+        CAST(NULL AS INT64) AS creations_goal,
+        CAST(NULL AS INT64) AS opportunities_goal,
+        CAST(NULL AS INT64) AS mqls_goal,
+        CAST(NULL AS INT64) AS leads_goal,
+        CAST(NULL AS INT64) AS spend_goal,
+        CAST(NULL AS FLOAT64) AS accounting_revenues_goal
+    FROM
+        {{ ref('int_attributed_contact_revenues') }},UNNEST(mql_linear) m
+    CROSS JOIN
+        UNNEST(["leads_by_lead_date",
+        "mqls_by_lead_date",
+        "mqls_by_signup_invoicing_date",
+        "mqls_by_mql_date",
+        "opportunities_by_mql_date",
+        "opportunities_by_opportunity_date",
+        "signups_invoicing_by_signup_invoicing_date",
+        "clients_invoicing_by_lead_date",
+        "clients_invoicing_by_mql_date",
+        "clients_invoicing_by_won_invoicing_date",
+        "clients_creation_by_lead_date",
+        "clients_creation_by_mql_date",
+        "clients_creation_by_opportunity_date",
+        "clients_creation_by_won_creation_date",
+        "clients_accounting_by_lead_date",
+        "clients_accounting_by_mql_date",
+        "clients_accounting_by_won_accounting_date",
+        "clients_direct_accounting_by_lead_date",
+        "clients_direct_accounting_by_mql_date",
+        "clients_direct_accounting_by_won_accounting_date",
+        "clients_invoicing_to_accounting_by_lead_date",
+        "clients_invoicing_to_accounting_by_signup_invoicing_date",
+        "clients_invoicing_to_accounting_by_mql_date",
+        "clients_invoicing_to_accounting_by_won_accounting_date",
+        "clients_crea_to_accounting_by_lead_date",
+        "clients_crea_to_accounting_by_mql_date",
+        "clients_crea_to_accounting_by_won_creation_date",
+        "clients_crea_to_accounting_by_won_accounting_date",
+        "losts_by_lead_date",
+        "losts_by_lost_date",
+        "reactivations_by_reactivation_date"]) AS calculation_type
+    WHERE
+        event_type IS NULL        
         
     UNION ALL
 
@@ -233,16 +542,33 @@ indicators_from_all_sources AS (
         lost_reason,
         contact_type,
         treatment_type,
-        first_touchpoint_source_name,
-        first_touchpoint_channel,
-        first_touchpoint_campaign_group,
-        first_touchpoint_term,
---        first_touchpoint_page,
-        first_form_source_name,
-        first_form_channel,
-        first_form_campaign_group,
-        first_form_term,
---        first_form_page,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,
+        model_type,
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_source_name
+            WHEN model_type = "first_form" THEN first_form_source_name
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_source_name
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_source_name
+        END AS source_name,
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_channel
+            WHEN model_type = "first_form" THEN first_form_channel
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_channel
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_channel
+        END AS channel,
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_campaign_group
+            WHEN model_type = "first_form" THEN first_form_campaign_group
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_campaign_group
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_campaign_group
+        END AS campaign_group, 
+        CASE
+            WHEN model_type = "first_touch" THEN first_touchpoint_term
+            WHEN model_type = "first_form" THEN first_form_term
+            WHEN model_type = "lead_last_touch" THEN lead_last_touchpoint_term
+            WHEN model_type = "mql_last_touch" THEN mql_last_touchpoint_term
+        END AS term,       
         pack_choice,
         prestation_name,
         prestation_category,
@@ -296,9 +622,185 @@ indicators_from_all_sources AS (
         CAST(NULL AS INT64) AS spend_goal,
         CAST(NULL AS FLOAT64) AS accounting_revenues_goal              
     FROM
-        {{ ref('int_attributed_contact_revenues') }} 
+        {{ ref('int_attributed_contact_revenues') }}
+    CROSS JOIN
+        UNNEST(["first_touch",
+        "first_form",
+        "lead_last_touch",
+        "mql_last_touch"
+        ]) AS model_type         
     WHERE
-        event_type = 'prestation'    
+        event_type = 'prestation'
+
+    UNION ALL
+
+    SELECT
+        contact_id,
+        dougs_user_id,
+        company_id,
+        dougs_company_id,
+        gender,
+        age_range,
+        eligible,
+        legal_form,
+        ape_activity_name,
+        activity,
+        first_conversion_form,
+        first_conversion_form_category,
+        first_conversion_form_type,
+        first_page,
+        contact_category,
+        lost_reason,
+        contact_type,
+        treatment_type,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,
+        "lead_linear" AS model_type,
+        l.lead_linear_source_name AS source_name,
+        l.lead_linear_channel AS channel,
+        l.lead_linear_campaign_group AS campaign_group,
+        l.lead_linear_utm_term AS term,     
+        pack_choice,
+        prestation_name,
+        prestation_category,
+        data_prestation_category,
+        event_date AS date_cohort,
+        event_date AS date_actual,
+        CAST(NULL AS INT64) AS leads_by_lead_date,
+        CAST(NULL AS INT64) AS mqls_by_lead_date,
+        CAST(NULL AS INT64) AS mqls_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS mqls_by_mql_date,
+        CAST(NULL AS INT64) AS opportunities_by_mql_date,
+        CAST(NULL AS INT64) AS opportunities_by_opportunity_date,
+        CAST(NULL AS INT64) AS signups_invoicing_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_lead_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_mql_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_won_date,
+        CAST(NULL AS INT64) AS clients_creation_by_lead_date,
+        CAST(NULL AS INT64) AS clients_creation_by_mql_date,
+        CAST(NULL AS INT64) AS clients_creation_by_opportunity_date,
+        CAST(NULL AS INT64) AS clients_creation_by_won_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_won_creation_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_won_date,
+        CAST(NULL AS INT64) AS losts_by_lead_date,
+        CAST(NULL AS INT64) AS losts_by_lost_date,
+        CAST(NULL AS INT64) AS reactivations_by_reactivation_date,
+        ROUND(prestation_amount,2) AS prestation_amount,
+        CAST(NULL AS INT64) AS impressions,
+        CAST(NULL AS INT64) AS clicks,
+        CAST(NULL AS FLOAT64) AS spend,
+        CAST(NULL AS INT64) AS sessions,
+        CAST(NULL AS INT64) AS accountings_goal,
+        CAST(NULL AS INT64) AS crea_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS invoicing_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS direct_accountings_goal,
+        CAST(NULL AS INT64) AS creations_goal,
+        CAST(NULL AS INT64) AS opportunities_goal,
+        CAST(NULL AS INT64) AS mqls_goal,
+        CAST(NULL AS INT64) AS leads_goal,
+        CAST(NULL AS INT64) AS spend_goal,
+        CAST(NULL AS FLOAT64) AS accounting_revenues_goal              
+    FROM
+        {{ ref('int_attributed_contact_revenues') }},UNNEST(lead_linear) l      
+    WHERE
+        event_type = 'prestation'
+
+    UNION ALL
+
+    SELECT
+        contact_id,
+        dougs_user_id,
+        company_id,
+        dougs_company_id,
+        gender,
+        age_range,
+        eligible,
+        legal_form,
+        ape_activity_name,
+        activity,
+        first_conversion_form,
+        first_conversion_form_category,
+        first_conversion_form_type,
+        first_page,
+        contact_category,
+        lost_reason,
+        contact_type,
+        treatment_type,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,
+        "mql_linear" AS model_type,
+        m.mql_linear_source_name AS source_name,
+        m.mql_linear_channel AS channel,
+        m.mql_linear_campaign_group AS campaign_group,
+        m.mql_linear_utm_term AS term,     
+        pack_choice,
+        prestation_name,
+        prestation_category,
+        data_prestation_category,
+        event_date AS date_cohort,
+        event_date AS date_actual,
+        CAST(NULL AS INT64) AS leads_by_lead_date,
+        CAST(NULL AS INT64) AS mqls_by_lead_date,
+        CAST(NULL AS INT64) AS mqls_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS mqls_by_mql_date,
+        CAST(NULL AS INT64) AS opportunities_by_mql_date,
+        CAST(NULL AS INT64) AS opportunities_by_opportunity_date,
+        CAST(NULL AS INT64) AS signups_invoicing_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_lead_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_mql_date,
+        CAST(NULL AS INT64) AS clients_invoicing_by_won_date,
+        CAST(NULL AS INT64) AS clients_creation_by_lead_date,
+        CAST(NULL AS INT64) AS clients_creation_by_mql_date,
+        CAST(NULL AS INT64) AS clients_creation_by_opportunity_date,
+        CAST(NULL AS INT64) AS clients_creation_by_won_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_direct_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_signup_invoicing_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_invoicing_to_accounting_by_won_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_lead_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_mql_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_won_creation_date,
+        CAST(NULL AS INT64) AS clients_crea_to_accounting_by_won_date,
+        CAST(NULL AS INT64) AS losts_by_lead_date,
+        CAST(NULL AS INT64) AS losts_by_lost_date,
+        CAST(NULL AS INT64) AS reactivations_by_reactivation_date,
+        ROUND(prestation_amount,2) AS prestation_amount,
+        CAST(NULL AS INT64) AS impressions,
+        CAST(NULL AS INT64) AS clicks,
+        CAST(NULL AS FLOAT64) AS spend,
+        CAST(NULL AS INT64) AS sessions,
+        CAST(NULL AS INT64) AS accountings_goal,
+        CAST(NULL AS INT64) AS crea_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS invoicing_accounting_transitions_goal,
+        CAST(NULL AS INT64) AS direct_accountings_goal,
+        CAST(NULL AS INT64) AS creations_goal,
+        CAST(NULL AS INT64) AS opportunities_goal,
+        CAST(NULL AS INT64) AS mqls_goal,
+        CAST(NULL AS INT64) AS leads_goal,
+        CAST(NULL AS INT64) AS spend_goal,
+        CAST(NULL AS FLOAT64) AS accounting_revenues_goal              
+    FROM
+        {{ ref('int_attributed_contact_revenues') }},UNNEST(mql_linear) m      
+    WHERE
+        event_type = 'prestation'             
   
     UNION ALL
 
@@ -321,16 +823,13 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
         CAST(NULL AS STRING) AS treatment_type,
-        source_name AS first_touchpoint_source_name,
-        channel AS first_touchpoint_channel,
-        campaign_name AS first_touchpoint_campaign_group,
-        keyword_name AS first_touchpoint_term,
---        CAST(NULL AS STRING) AS first_touchpoint_page,
-        source_name AS first_form_source_name,
-        channel AS first_form_channel,
-        campaign_name AS first_form_campaign_group,
-        keyword_name AS first_form_term,        
---        CAST(NULL AS STRING) AS first_form_page,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,
+        CAST(NULL AS STRING) AS model_type,
+        source_name,
+        channel,
+        IFNULL(FIRST_VALUE(c.campaign_group) OVER w,"Unmapped") AS campaign_group,
+        keyword_name AS term,         
         CAST(NULL AS STRING) AS pack_choice,
         CAST(NULL AS STRING) AS prestation_name,
         CAST(NULL AS STRING) AS prestation_category,
@@ -384,7 +883,16 @@ indicators_from_all_sources AS (
         CAST(NULL AS INT64) AS spend_goal,
         CAST(NULL AS FLOAT64) AS accounting_revenues_goal             
     FROM
-        {{ ref('int_advertising_statistics') }} 
+        {{ ref('int_advertising_statistics') }} a
+    LEFT JOIN
+        {{ ref('dim_mapping_campaign') }} c
+    ON
+        (c.utm_campaign IS NULL OR LOWER(a.campaign_name) LIKE LOWER(c.utm_campaign))            
+    WINDOW w AS (
+        PARTITION BY c.utm_campaign, c.utm_source, c.utm_medium
+        ORDER BY c.sort ASC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    )           
   
     UNION ALL
 
@@ -407,16 +915,13 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
         CAST(NULL AS STRING) AS treatment_type,
-        session_source_name AS first_touchpoint_source_name,
-        session_channel AS first_touchpoint_channel,
-        utm_campaign AS first_touchpoint_campaign_group,
-        utm_term AS first_touchpoint_term,
---        first_page AS first_touchpoint_page,
-        session_source_name AS first_form_source_name,
-        session_channel AS first_form_channel,
-        utm_campaign AS first_form_campaign_group,
-        utm_term AS first_form_term,
---        first_page AS first_form_page,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,
+        CAST(NULL AS STRING) AS model_type,
+        session_source_name AS source_name,
+        session_channel AS channel,
+        IFNULL(FIRST_VALUE(c.campaign_group) OVER w,"Unmapped") AS campaign_group,
+        utm_term AS term,
         CAST(NULL AS STRING) AS pack_choice,
         CAST(NULL AS STRING) AS prestation_name,    
         CAST(NULL AS STRING) AS prestation_category,
@@ -470,21 +975,32 @@ indicators_from_all_sources AS (
         CAST(NULL AS INT64) AS spend_goal,
         CAST(NULL AS FLOAT64) AS accounting_revenues_goal      
     FROM
-        {{ ref('int_google_analytics_4') }}
+        {{ ref('int_google_analytics_4') }} g
+    LEFT JOIN
+        {{ ref('dim_mapping_campaign') }} c
+    ON
+        (c.utm_campaign IS NULL OR LOWER(g.utm_campaign) LIKE LOWER(c.utm_campaign))
+        AND
+        (c.utm_source IS NULL OR LOWER(g.utm_source) LIKE LOWER(c.utm_source))
+        AND
+        (c.utm_medium IS NULL OR LOWER(g.utm_medium) LIKE LOWER(c.utm_medium))
     GROUP BY
         first_page,
-        first_touchpoint_source_name,
-        first_touchpoint_channel,
-        first_touchpoint_campaign_group,
-        first_touchpoint_term,
---        first_touchpoint_page,
-        first_form_source_name,
-        first_form_channel,
-        first_form_campaign_group,
-        first_form_term,
---        first_form_page,
+        source_name,
+        channel,
+        c.campaign_group,
+        c.utm_campaign,
+        c.utm_source,
+        c.utm_medium,
+        c.sort,
+        term,        
         date_cohort,
-        date_actual
+        date_actual        
+    WINDOW w AS (
+        PARTITION BY c.utm_campaign, c.utm_source, c.utm_medium
+        ORDER BY c.sort ASC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    )
 
     UNION ALL
 
@@ -507,16 +1023,13 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
         CAST(NULL AS STRING) AS treatment_type,
-        CAST(NULL AS STRING) AS first_touchpoint_source_name,
-        CAST(NULL AS STRING) AS first_touchpoint_channel,
-        CAST(NULL AS STRING) AS first_touchpoint_campaign_group,
-        CAST(NULL AS STRING) AS first_touchpoint_term,
---        CAST(NULL AS STRING) AS first_touchpoint_page,
-        CAST(NULL AS STRING) AS first_form_source_name,
-        CAST(NULL AS STRING) AS first_form_channel,
-        CAST(NULL AS STRING) AS first_form_campaign_group,
-        CAST(NULL AS STRING) AS first_form_term,
---        CAST(NULL AS STRING) AS first_form_page,
+        CAST(NULL AS INT64) AS pre_conversion_touchpoints,
+        CAST(NULL AS INT64) AS pre_conversion_forms,   
+        CAST(NULL AS STRING) AS model_type,
+        CAST(NULL AS STRING) AS source_name,
+        CAST(NULL AS STRING) AS channel,
+        CAST(NULL AS STRING) AS campaign_group,
+        CAST(NULL AS STRING) AS term,             
         CAST(NULL AS STRING) AS pack_choice,
         CAST(NULL AS STRING) AS prestation_name,    
         CAST(NULL AS STRING) AS prestation_category,
@@ -571,6 +1084,19 @@ indicators_from_all_sources AS (
         accounting_revenues_goal
     FROM
         daily_goals
+    GROUP BY
+        date_cohort,
+        date_actual,
+        accountings_goal,
+        crea_accounting_transitions_goal,
+        invoicing_accounting_transitions_goal,
+        direct_accountings_goal,
+        creations_goal,
+        opportunities_goal,
+        mqls_goal,
+        leads_goal,
+        spend_goal,
+        accounting_revenues_goal      
 ),
 indicators_on_main_breakdowns AS (
     SELECT
@@ -590,20 +1116,17 @@ indicators_on_main_breakdowns AS (
         lost_reason,
         contact_type,
         treatment_type,
-        first_touchpoint_source_name,
-        first_touchpoint_channel,
-        first_touchpoint_campaign_group,
-        first_touchpoint_term,
---        first_touchpoint_page,
-        first_form_source_name,
-        first_form_channel,
-        first_form_campaign_group,
-        first_form_term,
---        first_form_page,
         pack_choice,
         prestation_name,    
         prestation_category,
         data_prestation_category,
+        model_type,
+        source_name,
+        channel,
+        campaign_group,
+        term,
+        AVG(pre_conversion_touchpoints) AS pre_conversion_touchpoints,
+        AVG(pre_conversion_forms) AS pre_conversion_forms,
         SUM(leads_by_lead_date) AS leads_by_lead_date,
         SUM(mqls_by_lead_date) AS mqls_by_lead_date,
         SUM(mqls_by_signup_invoicing_date) AS mqls_by_signup_invoicing_date,
@@ -611,27 +1134,27 @@ indicators_on_main_breakdowns AS (
         SUM(opportunities_by_mql_date) AS opportunities_by_mql_date,
         SUM(opportunities_by_opportunity_date) AS opportunities_by_opportunity_date,
         SUM(signups_invoicing_by_signup_invoicing_date) AS signups_invoicing_by_signup_invoicing_date,
-        SUM(clients_invoicing_by_lead_date)AS clients_invoicing_by_lead_date,
-        SUM(clients_invoicing_by_mql_date)AS clients_invoicing_by_mql_date,
-        SUM(clients_invoicing_by_won_date)AS clients_invoicing_by_won_date,
-        SUM(clients_creation_by_lead_date)AS clients_creation_by_lead_date,
-        SUM(clients_creation_by_mql_date)AS clients_creation_by_mql_date,
-        SUM(clients_creation_by_opportunity_date)AS clients_creation_by_opportunity_date,
-        SUM(clients_creation_by_won_date)AS clients_creation_by_won_date,
-        SUM(clients_accounting_by_lead_date)AS clients_accounting_by_lead_date,
-        SUM(clients_accounting_by_mql_date)AS clients_accounting_by_mql_date,
-        SUM(clients_accounting_by_won_date)AS clients_accounting_by_won_date,
-        SUM(clients_direct_accounting_by_lead_date)AS clients_direct_accounting_by_lead_date,
-        SUM(clients_direct_accounting_by_mql_date)AS clients_direct_accounting_by_mql_date,
-        SUM(clients_direct_accounting_by_won_date)AS clients_direct_accounting_by_won_date,
-        SUM(clients_invoicing_to_accounting_by_lead_date)AS clients_invoicing_to_accounting_by_lead_date,
+        SUM(clients_invoicing_by_lead_date) AS clients_invoicing_by_lead_date,
+        SUM(clients_invoicing_by_mql_date) AS clients_invoicing_by_mql_date,
+        SUM(clients_invoicing_by_won_date) AS clients_invoicing_by_won_date,
+        SUM(clients_creation_by_lead_date) AS clients_creation_by_lead_date,
+        SUM(clients_creation_by_mql_date) AS clients_creation_by_mql_date,
+        SUM(clients_creation_by_opportunity_date) AS clients_creation_by_opportunity_date,
+        SUM(clients_creation_by_won_date) AS clients_creation_by_won_date,
+        SUM(clients_accounting_by_lead_date) AS clients_accounting_by_lead_date,
+        SUM(clients_accounting_by_mql_date) AS clients_accounting_by_mql_date,
+        SUM(clients_accounting_by_won_date) AS clients_accounting_by_won_date,
+        SUM(clients_direct_accounting_by_lead_date) AS clients_direct_accounting_by_lead_date,
+        SUM(clients_direct_accounting_by_mql_date) AS clients_direct_accounting_by_mql_date,
+        SUM(clients_direct_accounting_by_won_date) AS clients_direct_accounting_by_won_date,
+        SUM(clients_invoicing_to_accounting_by_lead_date) AS clients_invoicing_to_accounting_by_lead_date,
         SUM(clients_invoicing_to_accounting_by_signup_invoicing_date) AS clients_invoicing_to_accounting_by_signup_invoicing_date,
-        SUM(clients_invoicing_to_accounting_by_mql_date)AS clients_invoicing_to_accounting_by_mql_date,
-        SUM(clients_invoicing_to_accounting_by_won_date)AS clients_invoicing_to_accounting_by_won_date,
-        SUM(clients_crea_to_accounting_by_lead_date)AS clients_crea_to_accounting_by_lead_date,
+        SUM(clients_invoicing_to_accounting_by_mql_date) AS clients_invoicing_to_accounting_by_mql_date,
+        SUM(clients_invoicing_to_accounting_by_won_date) AS clients_invoicing_to_accounting_by_won_date,
+        SUM(clients_crea_to_accounting_by_lead_date) AS clients_crea_to_accounting_by_lead_date,
         SUM(clients_crea_to_accounting_by_mql_date) AS clients_crea_to_accounting_by_mql_date,
         SUM(clients_crea_to_accounting_by_won_creation_date) AS clients_crea_to_accounting_by_won_creation_date,
-        SUM(clients_crea_to_accounting_by_won_date)AS clients_crea_to_accounting_by_won_date,
+        SUM(clients_crea_to_accounting_by_won_date) AS clients_crea_to_accounting_by_won_date,
         SUM(losts_by_lead_date) AS losts_by_lead_date,
         SUM(losts_by_lost_date) AS losts_by_lost_date,
         SUM(reactivations_by_reactivation_date) AS reactivations_by_reactivation_date,
@@ -669,19 +1192,14 @@ indicators_on_main_breakdowns AS (
         lost_reason,
         contact_type,
         treatment_type,
-        first_touchpoint_source_name,
-        first_touchpoint_channel,
-        first_touchpoint_campaign_group,
-        first_touchpoint_term,
---        first_touchpoint_page,
-        first_form_source_name,
-        first_form_channel,
-        first_form_campaign_group,
-        first_form_term,
---        first_form_page,
         pack_choice,
         prestation_name,
         prestation_category,
-        data_prestation_category          
+        data_prestation_category,
+        model_type,
+        source_name,
+        channel,
+        campaign_group,
+        term               
 )
 SELECT * FROM indicators_on_main_breakdowns WHERE date_cohort >= "2023-10-01"
