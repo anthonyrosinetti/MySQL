@@ -48,7 +48,7 @@ contacts AS (
     FROM
         {{ ref('dim_hubspot_contacts') }} c
         LEFT JOIN
-            {{ ref('fct_contact_marketing_touchpoints') }} t
+            touchpoints t
         ON
             t.contact_id = c.hs_contact_id
 ),
@@ -67,8 +67,22 @@ company_attributes AS (
     FROM
         {{ ref('dim_hubspot_companies') }} c         
 ),
+touchpoints_with_dates AS (
+    SELECT DISTINCT
+        t.*,
+        c.date_lead,
+        c.date_mql,
+        c.date_won_accounting,
+        c.date_won_creation
+    FROM
+        touchpoints t
+        LEFT JOIN
+            contacts c
+        USING
+            (contact_id)           
+),
 attributed_stages_by_first_touchpoint_all AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         touchpoint_timestamp AS first_touchpoint_timestamp,
         utm_source AS first_touchpoint_source,
@@ -78,7 +92,7 @@ attributed_stages_by_first_touchpoint_all AS (
 --        REGEXP_EXTRACT(landing_page, r"^(?:https?://)?[^/]+(/[^?#]*)") AS first_touchpoint_page,
         partner_referral_id AS first_touchpoint_partner_referral_id
     FROM
-        touchpoints      
+        touchpoints   
     QUALIFY
         ROW_NUMBER() OVER (
         PARTITION BY contact_id
@@ -86,7 +100,7 @@ attributed_stages_by_first_touchpoint_all AS (
     ) = 1
 ),
 attributed_stages_by_first_touchpoint AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         touchpoint_timestamp AS first_touchpoint_timestamp,
         utm_source AS first_touchpoint_source,
@@ -108,7 +122,7 @@ attributed_stages_by_first_touchpoint AS (
     ) = 1
 ),
 attributed_stages_by_first_form_all AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         touchpoint_timestamp AS first_form_timestamp,
         utm_source AS first_form_source,
@@ -128,7 +142,7 @@ attributed_stages_by_first_form_all AS (
     ) = 1
 ),
 attributed_stages_by_first_form AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         touchpoint_timestamp AS first_form_timestamp,
         utm_source AS first_form_source,
@@ -151,6 +165,132 @@ attributed_stages_by_first_form AS (
         PARTITION BY contact_id
         ORDER BY touchpoint_timestamp ASC
     ) = 1
+),
+attributed_lead_by_last_touchpoint AS (
+    SELECT DISTINCT
+        contact_id,
+        LAST_VALUE(touchpoint_timestamp) OVER w AS lead_last_touchpoint_timestamp,
+        LAST_VALUE(utm_source) OVER w AS lead_last_touchpoint_source,
+        LAST_VALUE(utm_medium) OVER w AS lead_last_touchpoint_medium,
+        LAST_VALUE(utm_campaign) OVER w AS lead_last_touchpoint_campaign,
+        LAST_VALUE(utm_term) OVER w AS lead_last_touchpoint_term,
+        LAST_VALUE(partner_referral_id) OVER w AS lead_last_touchpoint_partner_referral_id
+    FROM
+        touchpoints_with_dates
+    WHERE
+        DATE(touchpoint_timestamp) <= date_lead
+    WINDOW w AS (
+            PARTITION BY contact_id
+            ORDER BY touchpoint_timestamp ASC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        )
+),
+attributed_mql_by_last_touchpoint AS (
+    SELECT DISTINCT
+        contact_id,
+        LAST_VALUE(touchpoint_timestamp) OVER w AS mql_last_touchpoint_timestamp,
+        LAST_VALUE(utm_source) OVER w AS mql_last_touchpoint_source,
+        LAST_VALUE(utm_medium) OVER w AS mql_last_touchpoint_medium,
+        LAST_VALUE(utm_campaign) OVER w AS mql_last_touchpoint_campaign,
+        LAST_VALUE(utm_term) OVER w AS mql_last_touchpoint_term,
+        LAST_VALUE(partner_referral_id) OVER w AS mql_last_touchpoint_partner_referral_id
+    FROM
+        touchpoints_with_dates
+    WHERE
+        DATE(touchpoint_timestamp) <= date_mql        
+    WINDOW w AS (
+            PARTITION BY contact_id
+            ORDER BY touchpoint_timestamp ASC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        )
+),
+lead_touchpoints AS (
+    SELECT DISTINCT
+        contact_id,
+        COUNT(DISTINCT touchpoint_id) AS touchpoints_count
+    FROM
+        touchpoints_with_dates
+    WHERE
+        DATE(touchpoint_timestamp) <= date_lead
+        AND
+        contact_id IS NOT NULL
+    GROUP BY
+      contact_id
+),
+mql_touchpoints AS (
+    SELECT DISTINCT
+        contact_id,
+        COUNT(DISTINCT touchpoint_id) AS touchpoints_count
+    FROM
+        touchpoints_with_dates
+    WHERE
+        DATE(touchpoint_timestamp) <= date_mql
+        AND
+        contact_id IS NOT NULL        
+    GROUP BY
+      contact_id
+),
+pre_conversion_touchpoints AS (
+    SELECT DISTINCT
+        contact_id,
+        COUNT(DISTINCT touchpoint_id) AS pre_conversion_touchpoints,
+        COUNT(DISTINCT CASE WHEN web_event_type = "form_submission" THEN touchpoint_id ELSE NULL END) AS pre_conversion_forms
+    FROM
+        touchpoints_with_dates      
+    WHERE
+        DATE(touchpoint_timestamp) <= LEAST(date_won_accounting,date_won_creation)
+        AND
+        contact_id IS NOT NULL        
+    GROUP BY
+      contact_id    
+),
+attributed_lead_linear AS (
+    SELECT DISTINCT
+        contact_id,
+        ARRAY_AGG(
+            STRUCT(
+                touchpoint_timestamp,
+                utm_source,
+                utm_medium,
+                utm_campaign,
+                utm_term,
+                partner_referral_id,
+                SAFE_DIVIDE(1,touchpoints_count) AS weight
+            )
+        ) AS lead_linear_touchpoint
+    FROM
+        touchpoints_with_dates
+        LEFT JOIN
+          lead_touchpoints
+        USING (contact_id)
+    WHERE
+        DATE(touchpoint_timestamp) <= date_lead
+    GROUP BY
+      contact_id
+),
+attributed_mql_linear AS (
+    SELECT DISTINCT
+        contact_id,
+        ARRAY_AGG(
+            STRUCT(
+                touchpoint_timestamp,
+                utm_source,
+                utm_medium,
+                utm_campaign,
+                utm_term,
+                partner_referral_id,
+                SAFE_DIVIDE(1,touchpoints_count) AS weight
+            )
+        ) AS mql_linear_touchpoint
+    FROM
+        touchpoints_with_dates
+        LEFT JOIN
+          mql_touchpoints
+        USING (contact_id)        
+    WHERE
+        DATE(touchpoint_timestamp) <= date_mql
+    GROUP BY
+      contact_id        
 )
 
 SELECT
@@ -203,11 +343,7 @@ SELECT
     CASE
         WHEN t.first_touchpoint_term IS NOT NULL THEN t.first_touchpoint_term
         ELSE tall.first_touchpoint_term
-    END AS first_touchpoint_term,
---    CASE
---        WHEN t.first_touchpoint_page IS NOT NULL THEN t.first_touchpoint_page
---        ELSE tall.first_touchpoint_page
---    END AS first_touchpoint_page,    
+    END AS first_touchpoint_term, 
     CASE
         WHEN t.first_touchpoint_timestamp IS NOT NULL THEN t.first_touchpoint_partner_referral_id
         ELSE tall.first_touchpoint_partner_referral_id
@@ -231,15 +367,27 @@ SELECT
     CASE
         WHEN f.first_form_term IS NOT NULL THEN f.first_form_term
         ELSE fall.first_form_term
-    END AS first_form_term,
---    CASE
---        WHEN f.first_form_page IS NOT NULL THEN f.first_form_page
---        ELSE fall.first_form_page
---    END AS first_form_page,    
+    END AS first_form_term, 
     CASE
         WHEN f.first_form_timestamp IS NOT NULL THEN f.first_form_partner_referral_id
         ELSE fall.first_form_partner_referral_id
     END AS first_form_partner_referral_id,
+    lead_last_touchpoint_timestamp,
+    lead_last_touchpoint_source,
+    lead_last_touchpoint_medium,
+    lead_last_touchpoint_campaign,
+    lead_last_touchpoint_term, 
+    lead_last_touchpoint_partner_referral_id,
+    mql_last_touchpoint_timestamp,
+    mql_last_touchpoint_source,
+    mql_last_touchpoint_medium,
+    mql_last_touchpoint_campaign,
+    mql_last_touchpoint_term, 
+    mql_last_touchpoint_partner_referral_id,
+    lead_linear_touchpoint,
+    mql_linear_touchpoint,
+    p.pre_conversion_touchpoints,
+    p.pre_conversion_forms,
     c.date_lost,
     c.date_lead,
     c.date_mql,
@@ -264,11 +412,31 @@ LEFT JOIN
 USING
     (contact_id)
 LEFT JOIN
+    attributed_lead_by_last_touchpoint l
+USING
+    (contact_id)
+LEFT JOIN
+    attributed_mql_by_last_touchpoint m
+USING
+    (contact_id)
+LEFT JOIN
     attributed_stages_by_first_touchpoint_all tall
 USING
     (contact_id)
 LEFT JOIN
     attributed_stages_by_first_form_all fall
+USING
+    (contact_id)
+LEFT JOIN
+    attributed_lead_linear ll
+USING
+    (contact_id)
+LEFT JOIN
+    attributed_mql_linear ml
+USING
+    (contact_id)
+LEFT JOIN
+    pre_conversion_touchpoints p
 USING
     (contact_id)
 LEFT JOIN
