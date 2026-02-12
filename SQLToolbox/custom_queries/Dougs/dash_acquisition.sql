@@ -30,7 +30,7 @@
 WITH months_days AS (
   SELECT DISTINCT
         o.month_trunc,
-        COUNT(d.date_actual) AS days_count
+        COUNT(CASE WHEN d.is_fr_business_day THEN d.date_actual ELSE NULL END) AS business_days_count
   FROM
         {{ ref('objectives_global_monthly') }} o
   LEFT JOIN
@@ -44,27 +44,61 @@ WITH months_days AS (
 daily_goals AS (
     SELECT
         date,
-        ROUND(SAFE_DIVIDE(obj_nb_companies_acquired,days_count),0) AS accountings_goal,
-        ROUND(SAFE_DIVIDE(obj_creation_to_accounting,days_count),0) AS crea_accounting_transitions_goal,
-        ROUND(SAFE_DIVIDE(obj_facturation_to_accounting,days_count),0) AS invoicing_accounting_transitions_goal,
---        ROUND(SAFE_DIVIDE(obj_nb_companies_acquired-obj_creation_to_accounting-obj_invoicing_to_accounting,days_count),0) AS direct_accountings_goal,
-        ROUND(SAFE_DIVIDE(obj_accounting_direct,days_count),0) AS direct_accountings_goal,
-        ROUND(SAFE_DIVIDE(obj_quote_2_accepted,days_count),0) AS creations_goal,
-        ROUND(SAFE_DIVIDE(obj_quote_1_accepted,days_count),0) AS opportunities_goal,
-        ROUND(SAFE_DIVIDE(obj_mql,days_count),0) AS mqls_goal,
-        ROUND(SAFE_DIVIDE(obj_lead,days_count),0) AS leads_goal,
-        ROUND(SAFE_DIVIDE(obj_budget_marketing_paid,days_count),0) AS spend_goal,
-        ROUND(SAFE_DIVIDE(obj_MRR_accounting,days_count),2) AS accounting_revenues_goal
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_nb_companies_acquired,business_days_count)
+            ELSE 0
+      END AS accountings_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_creation_to_accounting,business_days_count)
+            ELSE 0
+      END AS crea_accounting_transitions_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_facturation_to_accounting,business_days_count)
+            ELSE 0
+      END AS invoicing_accounting_transitions_goal,
+--        SAFE_DIVIDE(obj_nb_companies_acquired-obj_creation_to_accounting-obj_invoicing_to_accounting,business_days_count) AS direct_accountings_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_accounting_direct,business_days_count)
+            ELSE 0
+      END AS direct_accountings_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_quote_2_accepted,business_days_count)
+            ELSE 0
+      END AS creations_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_quote_1_accepted,business_days_count)
+            ELSE 0
+      END AS opportunities_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_mql,business_days_count)
+            ELSE 0
+      END AS mqls_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_lead,business_days_count)
+            ELSE 0
+      END AS leads_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_budget_marketing_paid,business_days_count)
+            ELSE 0
+      END AS spend_goal,
+      CASE
+            WHEN d.is_fr_business_day THEN SAFE_DIVIDE(obj_MRR_accounting,business_days_count)
+            ELSE 0
+      END AS accounting_revenues_goal
     FROM
         UNNEST(GENERATE_DATE_ARRAY('{{ min_date }}','{{ max_date }}')) date
         LEFT JOIN
-            {{ ref('objectives_global_monthly') }} o
-        ON
-            o.month_trunc = DATE_TRUNC(date,MONTH)
+                {{ ref('dim_dates') }} d
+                ON
+                d.date_actual = date
         LEFT JOIN
-            months_days md
-        ON
-            md.month_trunc = DATE_TRUNC(date,MONTH)
+                {{ ref('objectives_global_monthly') }} o_month
+                ON
+                o_month.month_trunc = DATE_TRUNC(date,MONTH)
+        LEFT JOIN
+                months_days md
+                ON
+                md.month_trunc = DATE_TRUNC(date,MONTH)
 ),
 
 indicators_from_all_sources AS (
