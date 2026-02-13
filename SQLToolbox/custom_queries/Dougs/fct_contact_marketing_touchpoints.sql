@@ -74,6 +74,8 @@ hs_contacts_first_pages AS (
         REGEXP_EXTRACT(url, r"^(?:https?://)?[^/]+(/[^?#]*)") AS contact_first_page
     FROM
         {{ ref('stg_airbyte_hubspot_event_visited_page') }} AS p
+    WHERE
+        REGEXP_EXTRACT(url, r"^(?:https?://)?([^/?#]+)") = 'www.dougs.fr'        
     QUALIFY
         ROW_NUMBER() OVER (
             PARTITION BY hs_contact_id
@@ -231,7 +233,21 @@ all_touchpoints AS (
 
 SELECT
     tch.contact_id,
-    fp.contact_first_page,
+    fp.contact_first_page AS first_page,
+    CASE
+        WHEN STARTS_WITH(fp.contact_first_page,'/blog/') THEN 'Blog'
+        WHEN STARTS_WITH(fp.contact_first_page,'/webinar') THEN 'Webinar'
+        WHEN STARTS_WITH(fp.contact_first_page,'/videos') THEN 'Video'
+        WHEN STARTS_WITH(fp.contact_first_page,'/guide') THEN 'Guide'
+        WHEN STARTS_WITH(fp.contact_first_page,'/ressources/') THEN 'Ressource'
+        WHEN STARTS_WITH(fp.contact_first_page,'/temoignage') THEN 'Témoignage'
+        WHEN STARTS_WITH(fp.contact_first_page,'/outils-simulation/') THEN 'Outil de simulation'
+        WHEN STARTS_WITH(fp.contact_first_page,'/expert-comptable/') THEN 'Expert-comptable'
+        WHEN STARTS_WITH(fp.contact_first_page,'/parten') THEN 'Partenariat'
+        WHEN STARTS_WITH(fp.contact_first_page,'/cre') THEN 'Création'
+        WHEN STARTS_WITH(fp.contact_first_page,'/facturation-electronique/') THEN 'Facturation électronique'
+        ELSE '-'
+    END AS first_page_category,
     touchpoint_type,
     touchpoint_id,
     touchpoint_timestamp,
