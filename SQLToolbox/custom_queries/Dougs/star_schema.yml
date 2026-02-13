@@ -1,0 +1,1574 @@
+version: 2
+
+models:
+
+  - name: dim_accounting_firm_offices
+    description: dimension table of accounting firm offices
+    columns:
+      - name: accounting_firm_office_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_accounting_subscription_onboardings
+    description: dimension table of accounting subscription onboarding
+    columns:
+      - name: company_id
+        tests:
+          - not_null
+
+  - name: dim_bing_ads_accounts
+    description: Dimension table of Microsoft Ads current account attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a Microsoft Ads account
+        tests:
+          - not_null
+          - unique
+      - name: account_name
+        description: Name of the account
+        tests:
+          - not_null
+      - name: account_currency
+        description: Currency of the account
+        tests:
+          - not_null
+
+  - name: dim_bing_ads_ads
+    description: Dimension table of Microsoft Ads current ad attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: Identifier of a Microsoft Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of a Microsoft Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: Identifier of a Microsoft Ads ad group
+        tests:
+          - not_null
+      - name: ad_id
+        description: Identifier of a Microsoft Ads ad
+        tests:
+          - not_null
+          - unique
+      - name: ad_name
+        description: Name of the ad
+
+  - name: dim_bing_ads_ad_groups
+    description: Dimension table of Microsoft Ads current ad group attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: Identifier of a Microsoft Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of a Microsoft Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: Identifier of a Microsoft Ads ad group
+        tests:
+          - not_null
+          - unique
+      - name: ad_group_name
+        description: Name of the ad group
+        tests:
+          - not_null
+      - name: ad_group_type
+        description: Type of the ad group
+        tests:
+          - not_null
+
+  - name: dim_bing_ads_campaigns
+    description: Dimension table of Microsoft Ads current campaign attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: Identifier of a Microsoft Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of a Microsoft Ads campaign
+        tests:
+          - not_null
+          - unique
+      - name: campaign_name
+        description: Name of the campaign
+        tests:
+          - not_null
+      - name: campaign_type
+        description: Type of the campaign
+        tests:
+          - not_null
+
+  - name: dim_bing_ads_keywords
+    description: Dimension table of Microsoft Ads current keyword attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: Identifier of a Microsoft Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of a Microsoft Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: Identifier of a Microsoft Ads ad group
+        tests:
+          - not_null
+      - name: keyword_id
+        description: Identifier of a Microsoft Ads keyword
+        tests:
+          - not_null
+          - unique
+      - name: keyword_name
+        description: Name/value/text of the keyword
+        tests:
+          - not_null
+
+  - name: dim_calendly_event_types
+    description: fact table of calendly events types
+    columns:
+      - name: uri
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_collaborators
+    description: dimension table of collaborators
+    columns:
+      - name: collaborator_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_companies
+    description: dimension table of companies
+    columns:
+      - name: company_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_company_partners
+    description: dimension table of company partners (table "partners" in the Dougs Postgres DB)
+    columns:
+      - name: company_partner_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_coupons
+    description: dimension table of coupons (table "coupons" in the Dougs Postgres DB)
+    columns:
+      - name: coupon_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_dougs_academy_internal_courses
+    description: dimension table of Dougs Academy courses for internal collaborators (https://academy.dougs.fr/)
+    columns:
+      - name: course_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_dougs_academy_internal_users
+    description: dimension table of Dougs Academy users for internal collaborators (https://academy.dougs.fr/)
+    columns:
+      - name: academy_user_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_dougs_academy_subscription_plans
+    description: dimension table of Dougs Academy's subscription plans (https://formation.dougs.fr/)
+    columns:
+      - name: subscription_plan_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_dougs_academy_users
+    description: dimension table of Dougs Academy's users (https://formation.dougs.fr/)
+    columns:
+      - name: academy_user_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_google_ads_campaigns
+    description: Dimension table of Google Ads current campaign attributes
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: ID of a Google Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a Google Ads campaign
+        tests:
+          - not_null
+          - unique
+      - name: campaign_name
+        description: Campaign name
+      - name: advertising_channel_type
+        description: Campaign channel type
+      - name: advertising_channel_sub_type
+        description: Campaign channel subtype
+
+  - name: dim_google_ads_ad_groups
+    description: Dimension table of Google Ads current ad group attributes
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: ID of a Google Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a Google Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: ID of a Google Ads ad group
+        tests:
+          - not_null
+          - unique
+      - name: ad_group_name
+        description: Ad Group name
+
+  - name: dim_google_ads_ads
+    description: Dimension table of Google Ads current keyword attributes
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: ID of a Google Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a Google Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: ID of a Google Ads ad group
+        tests:
+          - not_null
+      - name: ad_id
+        description: ID of a Google Ads ad
+        tests:
+          - not_null
+      - name: ad_name
+        description: Ad name
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - ad_group_id
+              - ad_id
+
+  - name: dim_google_ads_keywords
+    description: Dimension table of Google Ads current keyword attributes
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: ID of a Google Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a Google Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: ID of a Google Ads ad group
+        tests:
+          - not_null
+      - name: keyword_id
+        description: ID of a Google Ads keyword
+        tests:
+          - not_null
+      - name: keyword_name
+        description: Keyword text
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - ad_group_id
+              - keyword_id
+
+  - name: dim_hubspot_companies
+    description: dimension table of Hubspot's companies
+    columns:
+      - name: company_id
+        description: Hubspot Identifier of companies (Primary key)
+        tests:
+          - unique
+          - not_null
+      - name: dougs_company_id
+        description: ID of the company in Dougs application
+      - name: company_name
+        description: Name of the company
+      - name: contact_1
+        description: First Contact of the company
+      - name: contact_2
+        description: Second Contact of the company (if it exists)
+      - name: contact_3
+        description: Third Contact of the company (if it exists)
+      - name: created_at
+        description: Company creation date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: updated_at
+        description: Company last update date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: city
+        description: City associated to the company
+      - name: legal_form
+        description: Company legal form (eg. sasu, sarl, sci...)
+      - name: ape_code
+        description: Activity code of the company (eg. 7410Z, 9609Z...)
+      - name: activity
+        description: Detailed company activity (as free text input)
+      - name: lead_status
+        description: Status of the company as per HubSpot lifecycle
+      - name: has_company_creation
+        description: Boolean indicating if the company has used company creation service
+      - name: subscription_plan
+        description: Name of the plan the company is subsctibed to (eg. sérénité, sérénité...)
+      - name: lost_reason
+        description: Reason for losing the lead as per Dougs workflow
+      - name: eligible
+        description: Boolean about whether the company is eligible or not as per Dougs HubSpot configuration
+      - name: quote_1_created_date
+        description: Date at which the Devis 1 was created
+      - name: quote_2_accepted_date
+        description: Date at which the Devis 2 was accepted
+      - name: date_last_refresh
+        description: Last refresh date of the record via Airbyte
+      - name: ape_activity_name
+        description: Normalized company activity (from activity code)
+
+  - name: dim_hubspot_contacts
+    description: dimension table of Hubspot's contacts
+    columns:
+      - name: hs_contact_id
+        description: Hubspot Identifier of contacts (Primary key)
+        tests:
+          - unique
+          - not_null
+      - name: dougs_user_id
+        description: Contact id in our app (Dougs)
+      - name: associated_company_id
+      - name: company_1
+      - name: company_2
+      - name: company_3
+      - name: created_at_timestamp
+        description: Contact creation date and time in hubspot (Raw Extraction YYYY-MM-DD 00:00:00.000000 UTC)
+        tests:
+          - not_null
+      - name: created_at
+        description: Contact creation date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: updated_at_timestamp
+        description: Contact update date in hubspot (Raw Extraction YYYY-MM-DD 00:00:00.000000 UTC)
+        tests:
+          - not_null
+      - name: updated_at
+        description: Contact last update date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: last_name
+        description: Contact last name
+      - name: first_name
+        description: Contact first name
+      - name: email
+        description: Contact email
+      - name: phone
+        description: Contact phone
+      - name: owner
+        description: Owner Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+      - name: owner_id
+        description: Owner identifier Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+      - name: eligible
+        description: Boolean about whether the contact is eligible or not as per Dougs HubSpot configuration
+      - name: original_source
+        description: The first known source through which a contact interacted with us
+      - name: original_source_drill_down_1
+        description: Detail about the first known source. (for more details https://knowledge.hubspot.com/contacts/understand-source-properties)
+      - name: first_conversion_date
+        description: Date of the first contact conversion to client
+      - name: first_conversion_form
+        description: First conversion form the contact has ever submitted
+      - name: first_conversion_form_type
+        description: Type of the first conversion form the contact has ever submitted
+      - name: first_conversion_form_category
+        description: Category of the first conversion form the contact has ever submitted      
+      - name: pack_choice
+        description: Dougs package the contact has chosen (eg. liberté, sérénité...)
+      - name: product_types
+        description: Type of product the contact is related to as a concatenated string separed by semicolon (eg. invoicing, accounting;invoicing;creation...)
+      - name: lead_source
+        description: Source that led to contact conversion
+      - name: lead_status
+        description: Status of the lead (eg. À recontacter plus tard, Won, Indésirable...)
+      - name: contact_category
+        description: Category of the contact (eg. Prospect, Prospect Chaud, Client, Lost / Indésirable...)
+      - name: date_lost
+        description: Date at which the contact is considered as lost
+      - name: date_lead
+        description: Date when the contact has entered Lead stage as per HubSpot lifecycle
+      - name: date_mql
+        description: Date when the contact has entered MQL stage as per HubSpot lifecycle
+      - name: date_sql
+        description: Date when the contact has entered SQL stage as per HubSpot lifecycle
+      - name: date_opportunity
+        description: Date when the contact has entered Opportunity stage as per HubSpot lifecycle
+      - name: date_won_invoicing
+        description: Date when the contact is considered as Won for invoicing (first sale invoice generated)
+      - name: date_won_accounting
+        description: Date when the contact has entered Customer stage as per HubSpot lifecycle, also considered as the won stage for accounting
+      - name: date_won_creation
+        description: Date when the contact has entered Won Creation stage as per HubSpot lifecycle
+      - name: date_last_refresh
+        description: Last refresh date of the record via Airbyte
+        tests:
+          - not_null
+      - name: gender
+        description: Gender of the contact
+        tests:
+          - not_null
+          - accepted_values:
+              severity: warn
+              values: ['-', 'H', 'F']
+      - name: age_range
+        description: Age range of the contact
+        tests:
+          - not_null
+          - accepted_values:
+              severity: warn
+              values: ['-', '< 18 ans', '18 - 24 ans', '25 - 34 ans', '35 - 49 ans', '50 - 64 ans', '65 ans et +']
+      - name: date_first_subscription_activated
+      - name: first_subscription_plan
+
+  - name: dim_hubspot_forms
+    description: dimension table of Hubspot's forms
+    columns:
+      - name: form_id
+        description: primary key
+        tests:
+          - unique
+          - not_null          
+  
+  - name: dim_providers
+    description: dimension table of providers
+    columns:
+      - name: provider_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_intercom_admins
+    description: dimension table of Intercom's admins
+    columns:
+      - name: ic_admin_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_intercom_contacts
+    description: dimension table of Intercom's contacts
+    columns:
+      - name: ic_contact_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_intercom_teams
+    description: dimension table of Intercom's teams
+    columns:
+      - name: ic_team_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_linkedin_ads_campaigns
+    description: Dimension table of LinkedIn Ads campaign group attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a LinkedIn Ads account
+        tests:
+          - not_null
+      - name: campaign_group_id
+        description: ID of a LinkedIn Ads campaign group
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a LinkedIn Ads campaign
+        tests:
+          - not_null
+          - unique
+      - name: campaign_name
+        description: Name of the campaign
+
+  - name: dim_linkedin_ads_campaign_groups
+    description: Dimension table of LinkedIn Ads campaign group attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a LinkedIn Ads account
+        tests:
+          - not_null
+      - name: campaign_group_id
+        description: ID of a LinkedIn Ads campaign group
+        tests:
+          - not_null
+          - unique
+      - name: campaign_group_name
+        description: Name of the campaign group
+
+  - name: dim_linkedin_ads_creatives
+    description: Dimension table of LinkedIn Ads campaign group attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a LinkedIn Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a LinkedIn Ads campaign
+        tests:
+          - not_null
+      - name: creative_id
+        description: ID of a LinkedIn Ads creative
+        tests:
+          - not_null
+          - unique
+      - name: creative_name
+        description: Name of the creative
+
+  - name: dim_meta_ads_ads
+    description: Dimension table of Meta Ads ad attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a Meta Ads account
+        tests:
+          - not_null
+      - name: ad_id
+        description: ID of a Meta Ads ad
+        tests:
+          - not_null
+          - unique
+      - name: ad_name
+        description: Name of the ad
+
+  - name: dim_meta_ads_adsets
+    description: Dimension table of Meta Ads adset attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a Meta Ads account
+        tests:
+          - not_null
+      - name: adset_id
+        description: ID of a Meta Ads adset
+        tests:
+          - not_null
+          - unique
+      - name: adset_name
+        description: Name of the adset
+
+  - name: dim_meta_ads_campaigns
+    description: Dimension table of Meta Ads campaign attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of a Meta Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a Meta Ads campaign
+        tests:
+          - not_null
+          - unique
+      - name: campaign_name
+        description: Name of the campaign
+
+  - name: dim_natural_people
+    description: dimension table of natural people
+    columns:
+      - name: natural_person_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_objectives_global_monthly
+    description: dimension table of objectives
+    columns:
+      - name: month_trunc
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_ringover_contacts
+    description: dimension table of Ringover's contacts
+    columns:
+      - name: contact_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_ringover_groups
+    description: dimension table of Ringover's groups
+    columns:
+      - name: group_id
+        description: primary key
+        tests:
+          - unique 
+          - not_null
+
+  - name: dim_ringover_users
+    description: dimension table of Ringover's users 
+    columns:
+      - name: user_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_signup_users
+    description: dimension table of source of users signup
+    columns:
+      - name: signup_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_subscription_plans
+    description: dimension table of subscription plans available today and in the past
+    columns:
+      - name: id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+          
+  - name: dim_synchronized_accounts
+    description: fact table of synchronized_accounts
+    columns:
+      - name: account_id                                                                                                 
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_tiktok_ads_ads
+    description: Dimension table of Tiktok Ads ad attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: ad_id
+        description: ID of a TikTok Ads ad
+        tests:
+          - not_null
+          - unique
+      - name: ad_name
+        description: Name of the ad
+
+  - name: dim_tiktok_ads_adgroups
+    description: Dimension table of Tiktok Ads ad group attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: adgroup_id
+        description: ID of a TikTok Ads ad group
+        tests:
+          - not_null
+          - unique
+      - name: adgroup_name
+        description: Name of the ad group
+
+  - name: dim_tiktok_ads_campaigns
+    description: Dimension table of Tiktok Ads campaign attributes
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of a TikTok Ads campaign
+        tests:
+          - not_null
+          - unique
+      - name: campaign_name
+        description: Name of the campaign
+
+  - name: dim_teams
+    description: dimension table of teams
+    columns:
+      - name: team_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_users
+    description: dimension table of users (anyone with a user account in the Dougs app)
+    columns:
+      - name: user_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_sales_invoicers
+    description: dimensions table of sales invoicers
+    columns:
+      - name: sales_invoicer_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_accounting_years
+    description: fact table of accounting years
+    columns:
+      - name: accounting_year_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_balances
+    description: fact table of accounting balances
+    columns:
+      - name: balance_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_billing_invoice_items
+    description: fact table of billing invoice items
+    columns:
+      - name: billing_invoice_item_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_bing_ads
+    description: Fact table of Microsoft Ads basic data (spend, impressions, clicks)
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: account_id
+        description: Identifier of the Microsoft Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of the Microsoft Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: Identifier of the Microsoft Ads ad group
+      - name: ad_id
+        description: Identifier of the Microsoft Ads ad
+      - name: keyword_id
+        description: Identifier of the Microsoft Ads keyword
+      - name: device_type
+        description: Type of device on which the ad interaction (impressions, clicks and associated cost) happened
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - account_id
+              - campaign_id
+              - ad_group_id
+              - ad_id
+              - keyword_id
+              - device_type
+  
+  - name: fct_calendly_collaborators_history
+    description: This table historicalizes Calendly collaborator emails and names at appointment creation.
+                 It prevents data loss when collaborators leave Dougs/Calendly, which otherwise results in dougs_user_email and dougs_user_name showing as deleted.
+                 Populated daily since 2025-01-01, it's strictly based on creation date and is not updated for subsequent appointment changes.
+    columns:
+      - name: uri
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: dougs_user_name
+        description: Name of Dougs user linked to the Calendly appointment.
+        tests:
+          - dbt_utils.not_accepted_values:
+              arguments:
+                values: ['deleted']
+                severity: warn
+  
+  - name: fct_bank_connections
+    description: fact table of connections
+    columns:
+      - name: connection_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_calendly_scheduled_events
+    description: fact table of calendly scheduled events
+    columns:
+      - name: uri
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_contact_marketing_touchpoints
+    description: fact table of contact marketing touch points (sessions, form submissions, web app events)
+    columns:
+      - name: contact_id
+        description: Contact ID
+        tests:
+          - not_null  
+      - name: contact_first_page
+        description: Contact first visited page (GA4)               
+      - name: touchpoint_type
+        description: Type of the touchpoint     
+      - name: touchpoint_id
+        description: Touchpoint ID
+        tests:
+          - not_null
+      - name: touchpoint_timestamp
+        description: Timestamp of the touchpoint occurrence    
+      - name: web_event_type
+        description: Web event type relative to the touchpoint
+      - name: landing_page
+        description: Landing page where the touchpoint occurred
+      - name: referrer
+        description: Referrer value when the touchpoint occurred
+      - name: utm_source
+        description: UTM source
+      - name: utm_medium
+        description: UTM medium
+      - name: utm_campaign
+        description: UTM campaign
+      - name: utm_id
+        description: UTM ID
+      - name: utm_content
+        description: UTM content  
+      - name: utm_term
+        description: UTM term
+      - name: gclid
+        description: gclid
+      - name: fbclid
+        description: fbclid          
+      - name: partner_referral_id
+        description: Partner referral ID
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - contact_id
+              - touchpoint_type
+              - touchpoint_id
+              - touchpoint_timestamp
+
+  - name: fct_contact_stages_attribution
+    description: fact table of attribution models implementation at a contact level
+    columns:
+      - name: contact_id
+        description: Contact ID
+        tests:
+          - not_null  
+      - name: dougs_user_id
+        description: Contact Dougs user ID      
+      - name: company_id
+        description: Company ID
+      - name: dougs_company_id
+        description: Company Dougs ID
+      - name: gender
+        description: Contact gender
+        tests:
+          - accepted_values:
+              severity: warn
+              values: ['-', 'H', 'F']        
+      - name: age_range
+        description: Contact age range
+        tests:
+          - accepted_values:
+              severity: warn
+              values: ['-', '< 18 ans', '18 - 24 ans', '25 - 34 ans', '35 - 49 ans', '50 - 64 ans', '65 ans et +']        
+      - name: eligible
+        description: Boolean about whether the company is eligible or not as per Dougs HubSpot configuration
+      - name: legal_form
+        description: Company legal form (eg. sasu, sarl, sci...)
+      - name: country
+        description: Contact country
+      - name: ape_activity_name
+        description: Reference APE activity of the company
+      - name: activity
+        description: Detailed company activity (as free text input)
+      - name: first_conversion_form
+        description: First conversion form the contact has ever submitted
+      - name: first_conversion_form_type
+        description: Type of the first conversion form the contact has ever submitted
+      - name: first_conversion_form_category
+        description: Category of the first conversion form the contact has ever submitted              
+      - name: contact_first_page
+        description: Contact first visited page (GA4)
+      - name: lead_source
+        description: Contact HubSpot-associated source
+      - name: original_source
+        description: The first known source through which a contact interacted with us
+      - name: original_source_drill_down_1
+        description: Detail about the first known source. (for more details https://knowledge.hubspot.com/contacts/understand-source-properties)
+      - name: contact_category
+        description: Category of the contact (eg. Prospect, Prospect Chaud, Client, Lost / Indésirable...)        
+      - name: lost_reason
+        description: Reason for losing the lead as per Dougs workflow
+      - name: contact_type
+        description: Type of the contact (Lead First, MQL First)        
+      - name: treatment_type
+        description: Treatment type of the contact (eg. Sec, Frigo, Congel...)
+      - name: xxx_timestamp
+        description: Attribution model contribution timestamp
+      - name: xxx_source
+        description: Attribution model contribution source
+      - name: xxx_medium
+        description: Attribution model contribution medium
+      - name: xxx_campaign
+        description: Attribution model contribution campaign
+      - name: xxx_term
+        description: Attribution model contribution term
+      - name: xxx_partner_referral_id
+        description: Attribution model contribution partner referral ID
+      - name: lead_linear_touchpoint
+        description: Nested field gathering all attribution data relative to linear contribution model before lead
+      - name: mql_linear_touchpoint
+        description: Nested field gathering all attribution data relative to linear contribution model before MQL
+      - name: pre_conversion_touchpoints
+        description: Number of touchpoints per contact before company creation or accounting subscription
+      - name: pre_conversion_forms
+        description: Number of forms per contact before company creation or accounting subscription
+      - name: date_lost
+        description: Date when contact was lost
+      - name: date_lead
+        description: Date when contact switched to lead stage
+      - name: date_mql
+        description: Date when contact switched to MQL stage
+      - name: date_sql
+        description: Date when contact switched to SQL stage
+      - name: date_opportunity
+        description: Date when contact switched to opportunity stage
+      - name: date_signup_invoicing
+        description: Date when contact validated invoicing sign up
+      - name: date_won_invoicing
+        description: Date when contact validated first sale invoice
+      - name: date_won_creation
+        description: Date when contact created his first company with Dougs
+      - name: date_won_accounting
+        description: Date when contact subscribed to his first accounting offer
+      - name: pack_choice
+        description: Contact associated subscription plan           
+
+  - name: fct_collaborator_quality_control_rates
+    description: fact table of quality control rates by collaborator and task code
+    columns:
+      - name: rate_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_data_extraction_requests
+    columns:
+      - name: data_extraction_request_id
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_dougs_academy_courses
+    description: fact table of Dougs Academy's (Learnworlds) courses
+    columns:
+      - name: course_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_dougs_academy_certificates
+    description: fact table of Dougs Academy's (Learnworlds) certificates
+    columns:
+      - name: certificate_id
+        description: primary key
+        tests:
+          - unique:
+              config:
+                severity: error
+                error_if: ">10"
+                warn_if: ">1"
+          - not_null
+
+  - name: fct_dougs_academy_internal_user_progress
+    description: fact table of Dougs Academy progress per Dougs collaborator and per course (https://academy.dougs.fr/)
+
+  - name: fct_dougs_academy_payments
+    description: fact table of Dougs Academy's (Learnworlds) payments (https://formation.dougs.fr/)
+    columns:
+      - name: payment_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_dougs_academy_subscriptions
+    description: fact table of Dougs Academy's (Learnworlds) subscriptions (https://formation.dougs.fr/)
+    columns:
+      - name: subscription_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_dougs_academy_user_progress
+    description: fact table of Dougs Academy progress per customer and per course (https://formation.dougs.fr/)
+
+  - name: fct_events_surveys
+    description: fact table of NPS and CDS surveys
+    columns:
+      - name: unique_survey_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_google_ads_clicks
+    description: Fact table of Google Ads clicks data (gclid)
+    columns:
+      - name: date_report
+        description: Date at which the click happened
+        tests:
+          - not_null
+      - name: customer_id
+        description: Customer ID
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Campaign ID
+        tests:
+          - not_null
+      - name: campaign_name
+        description: Campaign name
+      - name: ad_group_id
+        description: Ad group ID
+      - name: ad_group_name
+        description: Ad group name       
+      - name: ad_id
+        description: Ad ID
+      - name: ad_name
+        description: Ad name
+      - name: keyword_id
+        description: Keyword ID
+      - name: keyword_name
+        description: Keyword name
+      - name: gclid
+        description: gclid
+        tests:
+          - not_null
+          - unique      
+
+  - name: fct_google_ads
+    description: Fact table of Google Ads basic data (spend, impressions, clicks)
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: customer_id
+        description: ID of the Google Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of the Google Ads campaign
+        tests:
+          - not_null
+      - name: ad_group_id
+        description: ID of the Google Ads ad group
+      - name: ad_id
+        description: ID of the Google Ads ad
+      - name: keyword_id
+        description: ID of the Google Ads keyword
+      - name: device
+        description: Type of device on which the ad interaction (impressions, clicks and associated cost) happened
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - customer_id
+              - campaign_id
+              - ad_group_id
+              - ad_id
+              - keyword_id
+              - device_type
+              - ad_network_type
+
+  - name: fct_google_analytics_4_first_pageviews
+    description: Fact table of GA4 sessions data
+    columns:
+      - name: date_report
+        description: Date of the session start
+        tests:
+          - not_null
+      - name: first_page_timestamp
+        description: Timestamp of the user_pseudo_id first pageview
+      - name: user_pseudo_id
+        description: User pseudo ID
+        tests:
+          - not_null
+      - name: first_page
+        description: First landing page in contact lifetime on GA4
+      - name: first_referrer
+        description: First page referrer in contact lifetime on GA4
+
+  - name: fct_google_analytics_4_sessions
+    description: Fact table of GA4 sessions data
+    columns:
+      - name: date_report
+        description: Date of the session start
+        tests:
+          - not_null
+      - name: session_start_timestamp
+        description: Timestamp of the session start
+        tests:
+          - not_null
+      - name: user_pseudo_id
+        description: User pseudo ID
+        tests:
+          - not_null
+      - name: session_id
+        description: Session ID
+        tests:
+          - not_null
+      - name: landing_page
+        description: Landing page
+      - name: referrer
+        description: Referrer
+      - name: utm_source
+        description: UTM source
+      - name: utm_medium
+        description: UTM medium
+      - name: utm_campaign
+        description: UTM campaign
+      - name: utm_id
+        description: UTM ID
+      - name: utm_content
+        description: UTM content
+      - name: utm_term
+        description: UTM term
+      - name: gclid
+        description: gclid
+      - name: fbclid
+        description: fbclid
+      - name: partner_referral_id
+        description: Partner referral ID                             
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - session_id
+
+  - name: fct_hubspot_deals
+    description: fact table of deals in Hubspot
+    columns:
+      - name: deal_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_hubspot_form_submissions
+    description: fact table of Hubspot form submissions
+    columns:
+      - name: form_submission_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_hubspot_sessions
+    description: fact table of Hubspot sessions
+    columns:
+      - name: session_id
+        description: primary key
+        tests:
+          - unique
+          - not_null             
+
+  - name: fct_intercom_conversation_parts
+    description: fact table of conversation parts in Intercom
+    columns:
+      - name: conversation_part_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_intercom_conversations
+    description: fact table of conversations in Intercom
+    columns:
+      - name: conversation_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_insurance
+    description: fact table of insurance
+    columns:
+      - name: task_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_invoice_data_extraction_requests
+    columns:
+      - name: invoice_data_extraction_request_id
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_linkedin_ads
+    description: Fact table of LinkedIn Ads data (impressions, clicks and spend)
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of the LinkedIn Ads account
+        tests:
+          - not_null
+      - name: campaign_group_id
+        description: ID of the LinkedIn Ads campaign group
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of the LinkedIn Ads campaign
+        tests:
+          - not_null
+      - name: creative_id
+        description: ID of the LinkedIn Ads creative
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - account_id
+              - campaign_group_id
+              - campaign_id
+              - creative_id
+
+  - name: fct_meta_ads
+    description: Fact table of Meta Ads data (impressions, clicks and spend)
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: account_id
+        description: ID of the Meta Ads account
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of the Meta Ads campaign
+        tests:
+          - not_null
+      - name: adset_id
+        description: ID of the Meta Ads adset
+        tests:
+          - not_null
+      - name: ad_id
+        description: ID of the Meta Ads ad
+        tests:
+          - not_null
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - account_id
+              - campaign_id
+              - adset_id
+              - ad_id            
+
+  - name: fct_prestations
+    description: fact table of prestations
+    columns:
+      - name: prestation_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: company_id
+        description: ID of the company the prestation is attached to
+        tests:
+          - not_null
+
+  - name: fct_operations
+    description: fact table of operations
+    columns:
+      - name: operation_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_root_tasks
+    description: fact table of root tasks 
+    columns:
+      - name: task_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: company_id
+        description: ID of the company the task is attached to
+        tests:
+          - not_null
+      - name: completed_at
+        description: Date of task's completion
+        tests:
+          - assert_enough_completed_tasks_per_month:
+              arguments:
+                threshold: 100
+
+  - name: fct_quality_control_feedbacks
+    description: fact table of feedbacks on quality controls
+    columns:
+      - name: feedback_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_quality_controls
+    description: fact table of quality controls tasks
+    columns:
+      - name: quality_control_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_quotes
+    description: fact table of quotes
+    columns:
+      - name: quote_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_sales_invoices
+    description: fact table of sales invoices
+    columns:
+      - name: sales_invoice_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_sales_invoices_drafts
+    description: fact table of sales invoices drafts
+    columns:
+      - name: sales_invoice_draft_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_social_subscriptions
+    description: fact table of social subscriptions
+    columns:
+      - name: social_subscription_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: company_id
+        description: ID of the company the prestation is attached to
+        tests:
+          - not_null
+
+  - name: fct_subscriptions
+    description: fact table of subscriptions
+    columns:
+      - name: subscription_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: company_id
+        description: ID of the company the prestation is attached to
+        tests:
+          - not_null
+
+  - name: fct_subtasks
+    description: dimension table of subtasks
+    columns:
+      - name: subtask_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: fct_tiktok_ads
+    description: Fact table of TikTok Ads data (impressions, clicks and spend)
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: campaign_id
+        description: ID of the TikTok Ads campaign
+        tests:
+          - not_null
+      - name: adgroup_id
+        description: ID of the TikTok Ads ad group
+        tests:
+          - not_null
+      - name: ad_id
+        description: ID of the TikTok Ads ad
+        tests:
+          - not_null
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - campaign_id
+              - adgroup_id
+              - ad_id         
+
+  - name: fct_vendor_invoices
+    description: fact table of sales invoices
+    columns:
+      - name: vendor_invoice_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
