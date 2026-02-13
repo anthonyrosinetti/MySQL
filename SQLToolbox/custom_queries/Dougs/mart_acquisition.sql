@@ -73,7 +73,7 @@ company_attributes AS (
 ),
 enriched_touchpoints AS (
     SELECT DISTINCT
-        t.* EXCEPT (contact_id, contact_first_page),
+        t.* EXCEPT (contact_id, first_page, first_page_category),
         ROW_NUMBER() OVER (PARTITION BY contact_id ORDER BY touchpoint_timestamp ASC) AS touchpoint_row_number,
         contact_id,
         dougs_user_id,
@@ -89,7 +89,8 @@ enriched_touchpoints AS (
         first_conversion_form,
         first_conversion_form_category,
         first_conversion_form_type,
-        IFNULL(contact_first_page,"-") AS first_page,
+        IFNULL(first_page,"-") AS first_page,
+        first_page_category,
         lead_source,
         original_source,
         contact_category,
