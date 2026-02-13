@@ -102,7 +102,7 @@ daily_goals AS (
 ),
 
 indicators_from_all_sources AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -117,6 +117,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,
         contact_category,
         lost_reason,
         contact_type,
@@ -271,7 +272,7 @@ indicators_from_all_sources AS (
 
     UNION ALL
 
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -286,6 +287,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,        
         contact_category,
         lost_reason,
         contact_type,
@@ -414,7 +416,7 @@ indicators_from_all_sources AS (
 
     UNION ALL
 
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -429,6 +431,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,        
         contact_category,
         lost_reason,
         contact_type,
@@ -557,7 +560,7 @@ indicators_from_all_sources AS (
         
     UNION ALL
 
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -572,6 +575,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,        
         contact_category,
         lost_reason,
         contact_type,
@@ -668,7 +672,7 @@ indicators_from_all_sources AS (
 
     UNION ALL
 
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -683,6 +687,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,        
         contact_category,
         lost_reason,
         contact_type,
@@ -753,7 +758,7 @@ indicators_from_all_sources AS (
 
     UNION ALL
 
-    SELECT
+    SELECT DISTINCT
         contact_id,
         dougs_user_id,
         company_id,
@@ -768,6 +773,7 @@ indicators_from_all_sources AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,        
         contact_category,
         lost_reason,
         contact_type,
@@ -853,6 +859,7 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS first_conversion_form_category,
         CAST(NULL AS STRING) AS first_conversion_form_type,
         CAST(NULL AS STRING) AS first_page,
+        CAST(NULL AS STRING) AS first_page_category,
         CAST(NULL AS STRING) AS contact_category,
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
@@ -945,6 +952,7 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS first_conversion_form_category,
         CAST(NULL AS STRING) AS first_conversion_form_type,
         first_page,
+        first_page_category,
         CAST(NULL AS STRING) AS contact_category,
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
@@ -1020,6 +1028,7 @@ indicators_from_all_sources AS (
         (c.utm_medium IS NULL OR LOWER(g.utm_medium) LIKE LOWER(c.utm_medium))
     GROUP BY
         first_page,
+        first_page_category,
         source_name,
         channel,
         c.campaign_group,
@@ -1053,6 +1062,7 @@ indicators_from_all_sources AS (
         CAST(NULL AS STRING) AS first_conversion_form_category,
         CAST(NULL AS STRING) AS first_conversion_form_type,
         CAST(NULL AS STRING) AS first_page,
+        CAST(NULL AS STRING) AS first_page_category,
         CAST(NULL AS STRING) AS contact_category,
         CAST(NULL AS STRING) AS lost_reason,
         CAST(NULL AS STRING) AS contact_type,
@@ -1146,6 +1156,7 @@ indicators_on_main_breakdowns AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,
         contact_category,
         lost_reason,
         contact_type,
@@ -1222,6 +1233,7 @@ indicators_on_main_breakdowns AS (
         first_conversion_form_category,
         first_conversion_form_type,
         first_page,
+        first_page_category,
         contact_category,
         lost_reason,
         contact_type,
