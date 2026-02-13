@@ -19,7 +19,7 @@ WITH paid_prestations AS (
         )
 ),
 lead_linear_contacts AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         l.touchpoint_timestamp AS lead_linear_touchpoint_timestamp,
         CASE
@@ -87,7 +87,7 @@ aggregated_lead_linear_contacts AS (
         contact_id
 ),
 mql_linear_contacts AS (
-    SELECT
+    SELECT DISTINCT
         contact_id,
         m.touchpoint_timestamp AS mql_linear_touchpoint_timestamp,
         CASE
@@ -170,7 +170,8 @@ contact_stages AS (
         first_conversion_form,
         first_conversion_form_category,
         first_conversion_form_type,
-        IFNULL(contact_first_page,"-") AS first_page,
+        IFNULL(first_page,"-") AS first_page,
+        first_page_category,
         lead_source,
         original_source,
         contact_category,
