@@ -1,0 +1,530 @@
+version: 2
+
+sources:
+  - name: bronze_google_ads
+    description: Raw data from Google Ads sent by BigQuery Data Transfer Service within BigQuery
+    database: data-production-398108
+    schema: bronze_google_ads
+    config:
+      freshness:
+        warn_after: { count: 24, period: hour }
+        error_after: { count: 48, period: hour }
+        loaded_at_field: TIMESTAMP(_LATEST_DATE)
+
+    tables:
+      - name: ads_Campaign_8122074940
+        description: Attributes of the Google Ads campaigns
+        columns:
+          - name: _DATA_DATE
+            description: The date when the row was created.
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: campaign_name
+            description: Name of the campaign
+          - name: campaign_advertising_channel_type
+            description: Type of the campaign
+          - name: campaign_advertising_channel_sub_type
+            description: Subtype of the campaign
+      - name: ads_AdGroup_8122074940
+        description: Attributes of the Google Ads ad groups
+        columns:
+          - name: _DATA_DATE
+            description: The date when the row was created.
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: ad_group_name
+            description: Name of the ad group
+      - name: ads_Ad_8122074940
+        description: Attributes of the Google Ads ads
+        columns:
+          - name: _DATA_DATE
+            description: The date when the row was created.
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: ad_group_ad_ad_id
+            description: Identifier of the ad
+            tests:
+                - not_null
+          - name: ad_group_ad_ad_name
+            description: Name of the ad
+      - name: ads_Keyword_8122074940
+        description: Attributes of the Google Ads keywords
+        columns:
+          - name: _DATA_DATE
+            description: The date when the row was created.
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: ad_group_criterion_criterion_id
+            description: Identifier of the keyword criterion
+            tests:
+                - not_null
+          - name: ad_group_criterion_keyword_text
+            description: Text of the keyword
+      - name: ads_CampaignBasicStats_8122074940
+        description: Daily statistics at the campaign, device and network granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: segments_device
+            description: Type of device on which the ad interaction occured
+          - name: segments_ad_network_type
+            description: Type of ad network on which the ad interaction occured
+          - name: metrics_impressions
+            description: The volume of impressions
+          - name: metrics_clicks
+            description: The volume of clicks
+          - name: metrics_cost_micros
+            description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+      - name: ads_AdGroupBasicStats_8122074940
+        description: Daily statistics at the ad group, device and network granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: segments_device
+            description: Type of device on which the ad interaction occured
+          - name: segments_ad_network_type
+            description: Type of ad network on which the ad interaction occured
+          - name: metrics_impressions
+            description: The volume of impressions
+          - name: metrics_clicks
+            description: The volume of clicks
+          - name: metrics_cost_micros
+            description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+      - name: ads_AdBasicStats_8122074940
+        description: Daily statistics at the ad, device and network granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: ad_group_ad_ad_id
+            description: Identifier of the ad
+            tests:
+                - not_null
+          - name: segments_device
+            description: Type of device on which the ad interaction occured
+          - name: segments_ad_network_type
+            description: Type of ad network on which the ad interaction occured
+          - name: metrics_impressions
+            description: The volume of impressions
+          - name: metrics_clicks
+            description: The volume of clicks
+          - name: metrics_cost_micros
+            description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+      - name: ads_KeywordBasicStats_8122074940
+        description: Daily statistics at the keyword, device and network granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+            tests:
+                - not_null
+          - name: ad_group_criterion_criterion_id
+            description: Identifier of the keyword criterion
+            tests:
+                - not_null
+          - name: segments_device
+            description: Type of device on which the ad interaction occured
+          - name: segments_ad_network_type
+            description: Type of ad network on which the ad interaction occured
+          - name: metrics_impressions
+            description: The volume of impressions
+          - name: metrics_clicks
+            description: The volume of clicks
+          - name: metrics_cost_micros
+            description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+      - name: ads_ClickStats_8122074940
+        description: Daily statistics at the click ID granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: ad_group_id
+            description: Identifier of the ad group
+          - name: click_view_ad_group_ad
+            description: Identifier concatenating the identifiers of the customer, ad group and ad
+          - name: click_view_keyword
+            description: Identifier concatenating the identifiers of the customer, ad group and keyword
+          - name: click_view_gclid
+            description: Google Click ID
+            tests:
+                - not_null
+
+      - name: ads_CampaignCrossDeviceConversionStats_8122074940
+        description: Daily conversion statistics at the campaign ID granularity
+        columns:
+          - name: _DATA_DATE
+            description: The date of the statistics
+            tests:
+                - not_null
+          - name: customer_id
+            description: Identifier of the account
+            tests:
+                - not_null
+          - name: campaign_id
+            description: Identifier of the campaign
+            tests:
+                - not_null
+          - name: segments_conversion_action
+            description: Segment conversion action including conversion ID
+          - name: metrics_all_conversions
+            description: Conversions metrics including conversion values
+
+models:
+  - name: stg_google_ads_ads
+    description: Attributes of the Google Ads ads
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: ad_id
+        description: Identifier of the ad
+        tests:
+            - not_null
+      - name: ad_name
+        description: Name of the ad
+
+  - name: stg_google_ads_ad_basic_stats
+    description: Daily statistics at the ad, device and network granularity
+    columns:
+      - name: date_report
+        description: The date of the statistics
+        tests:
+            - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: ad_id
+        description: Identifier of the ad
+        tests:
+            - not_null
+      - name: device
+        description: Type of device on which the ad interaction occured
+      - name: ad_network_type
+        description: Type of ad network on which the ad interaction occured
+      - name: impressions
+        description: The volume of impressions
+      - name: clicks
+        description: The volume of clicks
+      - name: cost_micros
+        description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+
+  - name: stg_google_ads_ad_groups
+    description: Attributes of the Google Ads ad groups
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: ad_group_name
+        description: Name of the ad group
+
+  - name: stg_google_ads_ad_group_basic_stats
+    description: Daily statistics at the ad group, device and network granularity
+    columns:
+      - name: date_report
+        description: The date of the statistics
+        tests:
+            - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: device
+        description: Type of device on which the ad interaction occured
+      - name: ad_network_type
+        description: Type of ad network on which the ad interaction occured
+      - name: impressions
+        description: The volume of impressions
+      - name: clicks
+        description: The volume of clicks
+      - name: cost_micros
+        description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+
+  - name: stg_google_ads_campaigns
+    description: Attributes of the Google Ads campaigns
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: campaign_name
+        description: Name of the campaign
+      - name: advertising_channel_type
+        description: Type of the campaign
+      - name: advertising_channel_sub_type
+        description: Subtype of the campaign
+
+  - name: stg_google_ads_campaign_basic_stats
+    description: Daily statistics at the campaign, device and network granularity
+    columns:
+      - name: date_report
+        description: The date of the statistics
+        tests:
+            - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: device
+        description: Type of device on which the ad interaction occured
+      - name: ad_network_type
+        description: Type of ad network on which the ad interaction occured
+      - name: impressions
+        description: The volume of impressions
+      - name: clicks
+        description: The volume of clicks
+      - name: cost_micros
+        description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
+
+  - name: stg_google_ads_campaign_cross_device_conversion_stats
+    description: Daily conversion stats at the campaign granularity
+    columns:
+      - name: date
+        description: The date of the statistics
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: conversions
+        description: The volume of conversions
+
+  - name: stg_google_ads_click_stats
+    description: Details of Google Ads clicks by click ID
+    columns:
+      - name: date_report
+        description: The date of the statistics
+        tests:
+          - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+      - name: ad_group_id_ad_id
+        description: Identifier concatenating the identifiers of the customer, ad group and ad
+      - name: ad_group_id_keyword_id
+        description: Identifier concatenating the identifiers of the customer, ad group and keyword
+      - name: gclid
+        description: Google Click ID
+        tests:
+            - not_null
+
+  - name: stg_google_ads_keywords
+    description: Attributes of the Google Ads keywords
+    columns:
+      - name: date_last_refresh
+        description: Date at which the data was refreshed
+        tests:
+          - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: keyword_id
+        description: Identifier of the keyword
+        tests:
+            - not_null
+      - name: keyword_Name
+        description: Text of the keyword
+
+  - name: stg_google_ads_keyword_basic_stats
+    description: Daily statistics at the keyword, device and network granularity
+    columns:
+      - name: date_report
+        description: The date of the statistics
+        tests:
+            - not_null
+      - name: customer_id
+        description: Identifier of the account
+        tests:
+            - not_null
+      - name: campaign_id
+        description: Identifier of the campaign
+        tests:
+            - not_null
+      - name: ad_group_id
+        description: Identifier of the ad group
+        tests:
+            - not_null
+      - name: keyword_id
+        description: Identifier of the keyword
+        tests:
+            - not_null
+      - name: device
+        description: Type of device on which the ad interaction occured
+      - name: ad_network_type
+        description: Type of ad network on which the ad interaction occured
+      - name: impressions
+        description: The volume of impressions
+      - name: clicks
+        description: The volume of clicks
+      - name: cost_micros
+        description: The amount spent on ads (x 1,000,000), in the account currency (EUR for Dougs)
