@@ -1,0 +1,557 @@
+version: 2
+
+models:
+  - name: int_accounting_codes_impacted_from_visa
+    description: intermediate table with 1 row = 1 accounting_code
+                 A visa can contains 0 to multiple accounting_code
+                 No primary key for this model.
+
+  - name: int_advertising_statistics
+    description: Intermediate table containing all advertising statitics
+    columns:
+      - name: date_report
+        description: Date of the statistics
+        tests:
+          - not_null
+      - name: source_name
+        description: Advertising platform
+        tests:
+          - not_null
+          - accepted_values:
+              severity: warn
+              values: ['Google Ads', 'LinkedIn Ads', 'Meta Ads', 'Bing Ads', 'TikTok Ads']
+      - name: channel
+        description: Type of advertising platform
+        tests:
+          - not_null
+          - accepted_values:
+              severity: warn
+              values: ['Paid Search', 'Paid Social']
+      - name: account_id
+        description: ID of the advertising account
+      - name: campaign_type
+        description: Type of the advertising campaign
+      - name: campaign_id
+        description: ID of the advertising campaign
+        tests:
+          - not_null
+      - name: campaign_name
+        description: Name of the advertising campaign
+      - name: ad_group_id
+        description: ID of the advertising ad group
+      - name: ad_group_name
+        description: Name of the advertising ad group
+      - name: ad_id
+        description: ID of the advertising ad
+      - name: ad_name
+        description: Name of the advertising ad
+      - name: keyword_id
+        description: ID of the advertising keyword
+      - name: keyword_name
+        description: Name/value/text of the advertising keyword
+      - name: impressions
+        description: Volume of impression
+      - name: clicks
+        description: Volume of clicks
+      - name: spend
+        description: Budget spent
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date_report
+              - source_name
+              - account_id
+              - campaign_id
+              - ad_group_id
+              - ad_id
+              - keyword_id
+
+  - name: int_attributed_contact_revenues
+    description: Intermediate table mixing contact implemented attribution models + revenues
+    columns:
+      - name: contact_id
+        description: Contact ID 
+      - name: dougs_user_id
+        description: Contact Dougs user ID       
+      - name: company_id
+        description: Company ID
+      - name: dougs_company_id
+        description: Company Dougs ID
+      - name: gender
+        description: Contact gender
+        tests:
+          - accepted_values:
+              severity: warn
+              values: ['-', 'H', 'F']        
+      - name: age_range
+        description: Contact age range
+        tests:
+          - accepted_values:
+              severity: warn
+              values: ['-', '< 18 ans', '18 - 24 ans', '25 - 34 ans', '35 - 49 ans', '50 - 64 ans', '65 ans et +']        
+      - name: eligible
+        description: Boolean about whether the company is eligible or not as per Dougs HubSpot configuration
+      - name: legal_form
+        description: Company legal form (eg. sasu, sarl, sci...)
+      - name: country
+        description: Contact country
+      - name: ape_activity_name
+        description: Reference APE activity of the company
+      - name: activity
+        description: Detailed company activity (as free text input)
+      - name: first_conversion_form
+        description: First conversion form the contact has ever submitted
+      - name: first_conversion_form_type
+        description: Type of the first conversion form the contact has ever submitted
+      - name: first_conversion_form_category
+        description: Category of the first conversion form the contact has ever submitted              
+      - name: first_page
+        description: Contact first visited page (GA4)
+      - name: lead_source
+        description: Contact HubSpot-associated source
+      - name: original_source
+        description: The first known source through which a contact interacted with us
+      - name: contact_category
+        description: Category of the contact (eg. Prospect, Prospect Chaud, Client, Lost / Indésirable...)        
+      - name: lost_reason
+        description: Reason for losing the lead as per Dougs workflow
+      - name: contact_type
+        description: Type of the contact (Lead First, MQL First)        
+      - name: treatment_type
+        description: Treatment type of the contact (eg. Sec, Frigo, Congel...)
+      - name: xxx_timestamp
+        description: Attribution model contribution timestamp
+      - name: xxx_source
+        description: Attribution model contribution source
+      - name: xxx_medium
+        description: Attribution model contribution medium
+      - name: xxx_campaign
+        description: Attribution model contribution campaign
+      - name: xxx_term
+        description: Attribution model contribution term
+      - name: xxx_partner_referral_id
+        description: Attribution model contribution partner referral ID
+      - name: lead_linear
+        description: Nested field gathering all attribution data relative to linear contribution model before lead
+      - name: mql_linear
+        description: Nested field gathering all attribution data relative to linear contribution model before MQL
+      - name: pre_conversion_touchpoints
+        description: Number of touchpoints per contact before company creation or accounting subscription
+      - name: pre_conversion_forms
+        description: Number of forms per contact before company creation or accounting subscription
+      - name: date_lost
+        description: Date when contact was lost
+      - name: date_lead
+        description: Date when contact switched to lead stage
+      - name: date_mql
+        description: Date when contact switched to MQL stage
+      - name: date_sql
+        description: Date when contact switched to SQL stage
+      - name: date_opportunity
+        description: Date when contact switched to opportunity stage
+      - name: date_signup_invoicing
+        description: Date when contact validated invoicing sign up
+      - name: date_won_invoicing
+        description: Date when contact validated first sale invoice
+      - name: date_won_creation
+        description: Date when contact created his first company with Dougs
+      - name: date_won_accounting
+        description: Date when contact subscribed to his first accounting offer
+      - name: pack_choice
+        description: Contact associated subscription plan
+      - name: event_type
+        description: Type of the event recorded in contact LCS (e.g. on_creation, won_accounting, opportunity, prestation, mql, sql, lost, lead, won_invoicing,...)
+      - name: event_date
+        description: Date of the event recorded in contact LCS (e.g. on_creation, won_accounting, opportunity, prestation, mql, sql, lost, lead, won_invoicing,...)
+      - name: prestation_name
+        description: Name of the prestation subscribed to by a contact
+      - name: prestation_category
+        description: Category of the prestation subscribed to by a contact
+      - name: data_prestation_category
+        description: Macro category of the prestation subscribed to by a contact
+      - name: prestation_amount
+        description: Amount of the prestation subscribed to by a contact
+
+  - name: int_calendly_appointment_delay
+    description: intermediate table with 1 row = 1 calendly appointment
+                 Incremental model which purpose is to calculate working_seconds between creation of appointment and start of appointment
+    columns:
+      - name: uri
+        description: primary key
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                field: uri
+                to: ref('fct_calendly_scheduled_events')
+
+  - name: int_calendly_scheduled_events
+    description: intermediate table with 1 row = 1 calendly appointment
+    columns:
+      - name: url_api_event
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: diff_seconds
+        tests:
+          - not_null
+          
+  - name: int_churn_scoring_database
+    description: intermediate table with 1 row = 1 company
+    columns:
+      - name: company_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_churn_scoring_output
+    description: intermediate table with 1 row = 1 company
+    columns:
+      - name: company_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_churn_scoring_python_model
+    description: ML churn scoring written in Python [DataProc Cluster](https://console.cloud.google.com/dataproc/clusters/data-dbt-dataproc-cluster/monitoring?region=europe-west1&hl=fr&project=data-production-398108)
+
+  - name: int_collaborator_production
+    description: This table combines data from Ringover, Intercom, and otif (via int_table) to power the production section of the DEB.
+
+  - name: int_collaborators_daily
+    description: fact table where 1 row = 1 collaborator X 1 day
+    columns:
+      - name: id_unique
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_companies
+    description: dimension table (after dim_companies) where 1 row = 1 company
+    columns:
+      - name: company_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_customer_satisfaction
+    description: 1 row = 1 rating
+    columns:
+      - name: unique_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_dougs_academy_internal_progress_per_user_per_course
+    description: fact table with the user's progress per course with users and courses insights
+    columns:
+      - name: id_unique
+        description: primary key
+        tests:
+          - not_null
+          - unique
+
+  - name: int_google_analytics_4
+    description: fact table with GA4 session and attribution calculation based on the utms
+    columns:
+      - name: date_report
+        description: Date of the session start
+        tests:
+          - not_null
+      - name: user_pseudo_id
+        description: User pseudo ID
+        tests:
+          - not_null
+      - name: session_id
+        description: Session ID
+        tests:
+          - not_null
+      - name: session_source_name
+        description: Session traffic source name, as per the mapping
+      - name: session_channel
+        description: Session traffic channel name, as per the mapping
+      - name: utm_source
+        description: UTM source
+      - name: utm_medium
+        description: UTM medium
+      - name: utm_campaign
+        description: UTM campaign
+      - name: utm_id
+        description: UTM ID
+      - name: utm_content
+        description: UTM content
+      - name: utm_term
+        description: UTM term
+      - name: partner_referral_id
+        description: Partner referral ID   
+
+  - name: int_head_of_legal_etp_per_day
+    description: fact table with specific tasks completed per day per collaborators' etp (equivalent temps plein)
+
+  - name: int_head_of_otif
+    description: fact root task table aggregated with OTIF (On Time In Full, meaning the number of tasks completed before their due date), collaborators informations and creation tasks informations
+    columns:
+      - name: task_id
+        tests:
+          - unique
+
+  - name: int_head_of_subtasks_completion
+    description: fact sub task table aggregated with root tasks informations
+
+  - name: int_intercom_conversation_parts_for_response_time
+    description: intermediate table that pairs conversation parts sent by one of Doug's collaborators with the preceding message
+                 from a client to calculate response time.
+    columns:
+      - name: conversation_part_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_intercom_conversations_madagascar
+    description: intermediate table with conversations by madagascar collaborators to analyse state of conversations
+
+  - name: int_intercom_conversation_parts_with_collaborators
+    description: This table maps conversation parts to the associated dougs user ID.
+
+  - name: int_intercom_conversations_with_collaborators
+    description: intermediate table with conversations by dougs collaborators including rated and not rated closed conversations
+
+  - name: int_intercom_conversations_with_collaborator_message_grouped
+    description: This table keeps only one message among groups of messages sent by a teammate in response to a customer,
+                 to avoid counting multiple replies in the production dashboard when the teammate sends several messages 
+                 in a row (within the same conversation part) without a new message from the customer.
+
+  - name: int_intercom_conversation_parts_with_response_time
+    description: intermediate table with response time between message written by user and admin in intercom conversations
+    columns:
+      - name: conversation_part_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      # - name: diff_seconds
+      #   tests:
+      #     - not_null:
+      #         arguments:
+      #           severity: warn
+
+  - name: int_intercom_cx_score
+    description: intermediate table that gather all cx_score attributes to intercom conversations
+    tests:
+      - warn_intercom_conversations_without_collaborator_infos:
+          arguments:
+            severity: warn
+
+  - name: int_intercom_first_accounting_assignments
+    description: >
+      Intercom conversation first assignments to FR accounting collaborators. 
+      Assignments are considered “first” if they are the first assignment to a FR accountant 
+      after the start of a conversation (not initiated by a FR accountant), 
+      or following the reopening of a conversation.    
+    tests:
+      - assert_iso_conversation_assignments_intercom_app:
+          arguments:
+            compared_model: ref('fct_intercom_accountant_assignations_app') 
+            severity: warn
+            warn_if: ">30"
+    columns:
+      - name: conversation_part_assignment_id
+        tests:
+          - unique
+          - not_null
+
+  - name: int_intercom_response_time
+    description: intermediate table with 1 row = 1 intercom response to customer
+                 Incremental model designed to calculate working seconds between the last client message and the collaborator's response.
+    columns:
+      - name: conversation_part_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+          # - relationships:
+          #     arguments:
+          #       field: conversation_part_id
+          #       to: ref('int_intercom_conversation_parts_for_response_time')
+          #       severity: warn
+
+  - name: int_kpis_global_monthly
+    description: This table consolidates the calculation of monthly kpis
+    columns:
+      - name: month_trunc
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: rolling_ratio_churn_to_active_12_month
+        description: This KPI measures the share of the company stock at t-12 that churned during the following 12 months.|
+                 Numerator = total number of companies that churned over the last 12 rolling months (current month included) |
+                 Denominator = number of active companies exactly 12 months ago
+                 It is NOT an annualized churn rate
+
+
+  - name: int_leads
+    description: intermediate table with 1 row = 1 MQL contact from HubSpot enriched with Ringover call metrics
+    columns:
+      - name: hs_contact_id
+        description: primary key - HubSpot contact ID
+        tests:
+          - unique
+          - not_null
+      - name: has_ringover_data
+        description: flag indicating if the contact has matching Ringover call data
+        tests:
+          - not_null
+      - name: nb_calls_total
+        description: total number of calls (inbound + outbound)
+        tests:
+          - not_null
+      - name: nb_calls_out_answered
+        description: number of outbound answered calls (incall_duration > 0)
+        tests:
+          - not_null
+      - name: nb_calls_in_answered
+        description: number of inbound answered calls (incall_duration > 0)
+        tests:
+          - not_null
+
+  - name: int_metrics_per_company_monthly
+    description: intermediate table with 1 row = 1 company X 1 month
+    columns:
+      - name: id_unique
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_otif_history
+    description: int_head_of_otif filtered with only active tasks and aggregated per collaborator and task code.
+    tests:
+      - test_daily_otif_yesterday_volume_stability:
+          arguments:
+            date_column: date_otif
+            accepted_delta: 300
+
+  - name: int_otif_subtasks
+    description: otif metrics for subtasks
+    columns:
+      - name: task_id
+        tests:
+          - unique
+          - not_null
+
+  - name: int_prestations
+    description: intermediate model where 1 row = 1 prestation
+    columns:
+      - name: prestation_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: company_id
+        description: ID of the company the prestation is attached to
+        tests:
+          - not_null
+
+  - name: int_prestations_monthly
+    description: intermediate table used for dash_reporting_global_monthly (layer 1)
+
+  - name: int_prestations_per_company_monthly
+    description: intermediate table used for dash_reporting_global_monthly (layer 3)
+
+  - name: int_prestations_rattrapage_monthly
+    description: intermediate table used for dash_reporting_global_monthly (layer 2)
+
+  - name: int_quality_controls
+    description: intermediate model where 1 row = 1 quality control task
+    columns:
+      - name: quality_control_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+      - name: controlled_task_id
+        description: ID of the task being controlled
+        tests:
+          - unique
+          - not_null
+      - name: control_quality_task_id
+        description: ID of the control quality task
+        tests:
+          - unique
+          - not_null
+
+  - name: int_ratings
+    description: intermediate mart model for ratings. 1 row = 1 rating.
+    columns:
+      - name: unique_id
+        description: primary key
+        tests:
+          - unique:
+              config:
+                severity: error
+                error_if: ">10"
+                warn_if: ">1"
+          - not_null
+
+  - name: int_reporting_offers
+    description: Calculates, by month and by plan, the main billing, discount, and revenue indicators (gross, net, and smoothed MRR), incorporating a 12-month rolling average of commercial impacts to estimate an adjusted recurring revenue
+    tests:
+    - dbt_utils.unique_combination_of_columns:
+        combination_of_columns:
+          - month_trunc
+          - plan
+
+  - name: int_ringover_calls
+    description: intermediate mart model for the calls from ringover
+    columns:
+      - name: cdr_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+  
+  - name: int_subscriptions
+    description: intermediate mart model for subscriptions. 1 row = 1 subscription
+    columns:
+      - name: unique_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_subscriptions_changes
+    description: intermediate mart model for subscriptions changes. 1 row = 1 subscription change event
+    columns:
+      - name: unique_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_teams_daily
+    description: fact table where 1 row = 1 team X 1 day
+    columns:
+      - name: id_unique
+        description: primary key
+        tests:
+          - unique
+          - not_null
+
+  - name: int_users
+    description: fact table where 1 row = 1 user
+    columns:
+      - name: dougs_user_id
+        description: primary key
+        tests:
+          - unique
+          - not_null
