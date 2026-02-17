@@ -1,0 +1,621 @@
+version: 2
+
+sources:
+  - name: bronze_airbyte_hubspot
+    description: raw data from hubspot sent by hubspot API source connector (Via Airbyte)
+    database: data-production-398108
+    schema: bronze_airbyte_hubspot
+    config:
+      freshness:
+        warn_after: { count: 24, period: hour }
+        error_after: { count: 48, period: hour }
+      loaded_at_field: _airbyte_extracted_at
+
+    tables:
+      - name: calendly_email_provided
+        description: Data collected regarding Calendly custom events
+        columns:
+          - name: id
+            description: Identifier of Calendly email submission
+            tests:
+              - unique
+              - not_null
+          - name: objectId
+            description: Identifier of the contact that generated the event (required). Foreign key to the id of the contacts model
+            tests:
+              - not_null
+          - name: occurredAt
+            description: Calendly email submission occurring date
+              - not_null
+          - name: properties
+            description: Metadata JSON used for event and company identification
+      - name: companies
+        description: Companies store information about the organizations that interact with us via Hubspot
+        columns:
+          - name: id
+            description: Identifier of companies (required)
+            tests:
+              - unique
+              - not_null
+          - name: contacts
+            description: Contacts of the company
+          - name: createdAt
+            description: Company creation date in hubspot
+          - name: updatedAt
+            description: Company last update date in hubspot
+      - name: contacts
+        description: Contacts store information about the individual people that interact with us via Hubspot
+        columns:
+          - name: id
+            description: Identifier of contacts (required)
+            tests:
+              - unique
+              - not_null
+          - name: createdAt
+            description: Contact creation date in hubspot
+          - name: updatedAt
+            description: Contact last update date in hubspot
+          - name: properties_last_name
+            description: Contact last name
+          - name: properties_first_name
+            description: Contact first name
+          - name: properties_email
+            description: Contact email
+          - name: properties_phone
+            description: Contact phone
+          - name: properties_owner
+            description: Owner Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+          - name: properties_hubspot_owner_id
+            description: Owner identifier Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+          - name: properties_hs_analytics_source
+            description: The first known source through which a contact interacted with us
+          - name: properties_hs_object_source_label
+            description: Detail about the first known source. (for more details https://knowledge.hubspot.com/contacts/understand-source-properties)
+          - name: properties_first_conversion_date
+            description: Date of the first contact conversion to client
+          - name: properties_lead_source
+            description: Source that led to contact conversion
+
+      - name: deals
+        description: Deals represent transactions with contacts or companies (from 2024-01-01 to today)
+        columns:
+          - name: id
+            description: Identifier of the deal (required)
+            tests:
+              - unique
+              - not_null
+          - name: contact
+            description: Contacts of the deal
+          - name: company
+            description: Companies of the deal
+          - name: createdAt
+            description: Deal creation date in hubspot
+          - name: updatedAt
+            description: Deal last update date in hubspot
+          - name: properties_amount
+            description: Amount of the deal
+          - name: properties_closedate
+            description: Date when the deal was closed
+          - name: properties_dealstage
+            description: Current stage of the deal
+      - name: forms
+        description: Forms represent the configuration of the form that can be submitted
+        columns:
+          - name: id
+            description: Identifier of the form (required)
+            tests:
+              - unique
+              - not_null
+          - name: name
+            description: Name of the form
+          - name: formType
+            description: Type of the form
+      - name: form_submissions
+        description: Form submissions represent informations on each form submitted
+        columns:
+          - name: conversionId
+            description: Identifier of the form submission (required)
+            tests:
+              - unique
+              - not_null
+          - name: formId
+            description: Identifier of the form (required)
+            tests:
+              - not_null
+          - name: submittedAt
+            description: Timestamp at which the form was submitted by the user (required)
+            tests:
+              - not_null
+          - name: pageUrl
+            description: URL of the page on which the form was submitted by the user
+          - name: values
+            description: JSON array containing all data submitted in the form submission
+      - name: e_form_submission_v2
+        description: Events generated by contacts related to form submissions
+        columns:
+          - name: id
+            description: Identifier of the event (required)
+            tests:
+              - unique
+              - not_null
+          - name: objectId
+            description: Identifier of the contact that generated the event (required). Foreign key to the id of the contacts model
+            tests:
+              - not_null
+          - name: occurredAt
+            description: Timestamp at which the event occurred (required)
+            tests:
+              - not_null
+          - name: properties
+            description: JSON array containing all data related to the event
+      - name: e_visited_page
+        description: Events generated by contacts related to page views
+        columns:
+          - name: id
+            description: Identifier of the event (required)
+            tests:
+              - unique
+              - not_null
+          - name: objectId
+            description: Identifier of the contact that generated the event (required). Foreign key to the id of the contacts model
+            tests:
+              - not_null
+          - name: occurredAt
+            description: Timestamp at which the event occurred (required)
+            tests:
+              - not_null
+          - name: properties
+            description: JSON array containing all data related to the event
+      - name: intercom_email_provided
+        description: Events generated by contacts related to Intercom email provided on the website
+        columns:
+          - name: id
+            description: Identifier of the event (required)
+            tests:
+              - unique
+              - not_null
+          - name: objectId
+            description: Identifier of the contact that generated the event (required). Foreign key to the id of the contacts model
+            tests:
+              - not_null
+          - name: occurredAt
+            description: Timestamp at which the event occurred (required)
+            tests:
+              - not_null
+          - name: properties
+            description: JSON array containing all data related to the event
+      - name: signup_web_app
+        description: Events generated by contacts related to web app signup on the website
+        columns:
+          - name: id
+            description: Identifier of the event (required)
+            tests:
+              - unique
+              - not_null
+          - name: objectId
+            description: Identifier of the contact that generated the event (required). Foreign key to the id of the contacts model
+            tests:
+              - not_null
+          - name: occurredAt
+            description: Timestamp at which the event occurred (required)
+            tests:
+              - not_null
+          - name: properties
+            description: JSON array containing all data related to the event
+
+models:
+  - name: stg_airbyte_hubspot_companies
+    description: Staging table for Hubspot companies
+    columns:
+      - name: company_id
+        description: Hubspot Identifier of companies (Primary key)
+        tests:
+          - unique
+          - not_null
+      - name: dougs_company_id
+        description: ID of the company in Dougs application
+      - name: company_name
+        description: Name of the company
+      - name: contact_1
+        description: First Contact of the company
+      - name: contact_2
+        description: Second Contact of the company (if it exists)
+      - name: contact_3
+        description: Third Contact of the company (if it exists)
+      - name: created_at
+        description: Company creation date in hubspot (Extracted from timestamp)
+      - name: updated_at
+        description: Company last update date in hubspot (Extracted from timestamp)
+      - name: city
+        description: City associated to the company
+      - name: legal_form
+        description: Company legal form (eg. sasu, sarl, sci...)
+      - name: ape_code
+        description: Activity code of the company (eg. 7410Z, 9609Z...)
+      - name: activity
+        description: Detailed company activity (as free text input)
+      - name: lead_status
+        description: Status of the company as per HubSpot lifecycle
+      - name: has_company_creation
+        description: Boolean indicating if the company has used company creation service
+      - name: subscription_plan
+        description: Name of the plan the company is subsctibed to (eg. sérénité, sérénité...)
+      - name: lost_reason
+        description: Reason for losing the lead as per Dougs workflow
+      - name: eligible
+        description: Boolean about whether the company is eligible or not as per Dougs HubSpot configuration
+      - name: quote_1_created_date
+        description: Date at which the Devis 1 was created
+      - name: quote_2_accepted_date
+        description: Date at which the Devis 2 was accepted
+      - name: date_last_refresh
+        description: Last refresh date of the record via Airbyte
+
+  - name: stg_airbyte_hubspot_contacts
+    description: Staging table for Hubspot contacts
+    columns:
+      - name: hs_contact_id
+        description: Hubspot Identifier of contacts (Primary key)
+        tests:
+          - unique
+          - not_null
+      - name: dougs_user_id
+        description: Contact id in our app (Dougs)
+      - name: associated_company_id
+      - name: company_1
+      - name: company_2
+      - name: company_3
+      - name: created_at_timestamp
+        description: Contact creation date and time in hubspot (Raw Extraction YYYY-MM-DD 00:00:00.000000 UTC)
+        tests:
+          - not_null
+      - name: created_at
+        description: Contact creation date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: updated_at_timestamp
+        description: Contact update date in hubspot (Raw Extraction YYYY-MM-DD 00:00:00.000000 UTC)
+        tests:
+          - not_null
+      - name: updated_at
+        description: Contact last update date in hubspot (Extracted from timestamp)
+        tests:
+          - not_null
+      - name: last_name
+        description: Contact last name
+      - name: first_name
+        description: Contact first name
+      - name: email
+        description: Contact email
+      - name: phone
+        description: Contact phone
+      - name: owner
+        description: Owner Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+      - name: owner_id
+        description: Owner identifier Responsible for Contact (Sales agent to whom this contact is assigned (commercial))
+      - name: eligible
+        description: Boolean about whether the contact is eligible or not as per Dougs HubSpot configuration
+      - name: original_source
+        description: The first known source through which a contact interacted with us
+      - name: original_source_drill_down_1
+        description: Detail about the first known source. (for more details https://knowledge.hubspot.com/contacts/understand-source-properties)
+      - name: first_conversion_date
+        description: Date of the first contact conversion to client
+      - name: first_conversion_form
+        description: First conversion form the contact has ever submitted
+      - name: first_conversion_form_type
+        description: Type of the first conversion form the contact has ever submitted
+      - name: first_conversion_form_category
+        description: Category of the first conversion form the contact has ever submitted      
+      - name: pack_choice
+        description: Dougs package the contact has chosen (eg. liberté, sérénité...)
+      - name: product_types
+        description: Type of product the contact is related to as a concatenated string separed by semicolon (eg. invoicing, accounting;invoicing;creation...)
+      - name: lead_source
+        description: Source that led to contact conversion
+      - name: lead_status
+        description: Status of the lead (eg. À recontacter plus tard, Won, Indésirable...)
+      - name: contact_category
+        description: Category of the contact (eg. Prospect, Prospect Chaud, Client, Lost / Indésirable...)
+      - name: date_lost
+        description: Date at which the contact is considered as lost
+      - name: date_lead
+        description: Date when the contact has entered Lead stage as per HubSpot lifecycle
+      - name: date_mql
+        description: Date when the contact has entered MQL stage as per HubSpot lifecycle
+      - name: date_sql
+        description: Date when the contact has entered SQL stage as per HubSpot lifecycle
+      - name: date_opportunity
+        description: Date when the contact has entered Opportunity stage as per HubSpot lifecycle
+      - name: date_won_invoicing
+        description: Date when the contact is considered as Won for invoicing (first sale invoice generated)
+      - name: date_won_accounting
+        description: Date when the contact has entered Customer stage as per HubSpot lifecycle, also considered as the won stage for accounting
+      - name: date_won_creation
+        description: Date when the contact has entered Won Creation stage as per HubSpot lifecycle
+      - name: date_last_refresh
+        description: Last refresh date of the record via Airbyte
+
+
+  - name: stg_airbyte_hubspot_deals
+    description: Staging table for Hubspot deals (Hubspot transactions)
+    columns:
+      - name: deal_id
+        description: Hubspot Identifier of deals (Primary key)
+      - name: contact_1
+        description: First Contact of the deal
+      - name: contact_2
+        description: Second Contact of the deal (if it exists)
+      - name: contact_3
+        description: Third Contact of the deal (if it exists)
+      - name: company_1
+        description: First Company of the deal
+      - name: company_2
+        description: Second Company of the deal (if it exists)
+      - name: company_3
+        description: Third Company of the deal (if it exists)
+      - name: created_at
+        description: Deal creation date in hubspot (Extracted from timestamp)
+      - name: updated_at
+        description: Deal last update date in hubspot (Extracted from timestamp)
+      - name: amount
+        description: Amount of the deal
+      - name: close_date
+        description: Date when the deal was closed (Extracted from timestamp)
+      - name: deal_stage
+        description: Current stage of the deal
+
+
+  - name: stg_airbyte_hubspot_event_calendly_email_provided
+    description: Staging table for Hubspot custom events related to Calendly
+    columns:
+      - name: hs_event_id
+        description: Identifier of Hubspot event
+        tests:
+          - unique
+          - not_null
+      - name: hs_contact_id
+        description: Identifier of the contact that generated the event (required)
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: Timestamp at which the event occurred
+          - not_null
+      - name: web_event_type
+        description: Event name of the event that generate the Hubspot event as available in the tracking plan
+      - name: session_utm_source
+        description: Traffic source variable utm_source based on a session-scope cookie that store the session initial value from the URL parameter utm_source
+      - name: session_utm_medium
+        description: Traffic source variable utm_medium based on a session-scope cookie that store the session initial value from the URL parameter utm_medium
+      - name: session_utm_campaign
+        description: Traffic source variable utm_campaign based on a session-scope cookie that store the session initial value from the URL parameter utm_campaign
+      - name: session_utm_id
+        description: Traffic source variable utm_id based on a session-scope cookie that store the session initial value from the URL parameter utm_id
+      - name: session_utm_content
+        description: Traffic source variable utm_content based on a session-scope cookie that store the session initial value from the URL parameter utm_content
+      - name: session_utm_term
+        description: Traffic source variable utm_term based on a session-scope cookie that store the session initial value from the URL parameter utm_term
+      - name: session_referrer
+        description: Referrer for the session based on a session-scope cookie that store the session initial value from the JavaScript `document.referrer` variable
+      - name: session_landing_page
+        description: Landing page for the session based on a session-scope cookie that store the session initial value from the JavaScript `window.location.href` variable
+      - name: session_gclid
+        description: Traffic source variable gclid based on a session-scope cookie that store the session initial value from the URL parameter gclid
+      - name: session_fbclid
+        description: Traffic source variable fbclid based on a session-scope cookie that store the session initial value from the URL parameter fbclid
+      - name: session_ga_visitor_id
+        description: Google Analytics client ID (visitor ID) based on the native GA4 cookie and related JavaScript methods
+
+
+  - name: stg_airbyte_hubspot_event_form_submission_v2
+    description: Staging table for Hubspot visited page events tracked by the Hubspot pixel on the website
+    columns:
+      - name: hs_event_id
+        description: Identifier of Hubspot event
+        tests:
+          - unique
+          - not_null
+      - name: hs_contact_id
+        description: Identifier of the contact that generated the event (required)
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: Timestamp at which the event occurred
+          - not_null
+      - name: form_id
+        description: Identifier of the form submitted
+      - name: form_type
+      - name: visitor_type
+
+
+  - name: stg_airbyte_hubspot_event_intercom_email_provided
+    description: Staging table for Hubspot custom events related to Intercom
+    columns:
+      - name: hs_event_id
+        description: Identifier of Hubspot event
+        tests:
+          - unique
+          - not_null
+      - name: hs_contact_id
+        description: Identifier of the contact that generated the event (required)
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: Timestamp at which the event occurred
+          - not_null
+      - name: web_event_type
+        description: Event name of the event that generate the Hubspot event as available in the tracking plan
+      - name: session_utm_source
+        description: Traffic source variable utm_source based on a session-scope cookie that store the session initial value from the URL parameter utm_source
+      - name: session_utm_medium
+        description: Traffic source variable utm_medium based on a session-scope cookie that store the session initial value from the URL parameter utm_medium
+      - name: session_utm_campaign
+        description: Traffic source variable utm_campaign based on a session-scope cookie that store the session initial value from the URL parameter utm_campaign
+      - name: session_utm_id
+        description: Traffic source variable utm_id based on a session-scope cookie that store the session initial value from the URL parameter utm_id
+      - name: session_utm_content
+        description: Traffic source variable utm_content based on a session-scope cookie that store the session initial value from the URL parameter utm_content
+      - name: session_utm_term
+        description: Traffic source variable utm_term based on a session-scope cookie that store the session initial value from the URL parameter utm_term
+      - name: session_referrer
+        description: Referrer for the session based on a session-scope cookie that store the session initial value from the JavaScript `document.referrer` variable
+      - name: session_landing_page
+        description: Landing page for the session based on a session-scope cookie that store the session initial value from the JavaScript `window.location.href` variable
+      - name: session_gclid
+        description: Traffic source variable gclid based on a session-scope cookie that store the session initial value from the URL parameter gclid
+      - name: session_fbclid
+        description: Traffic source variable fbclid based on a session-scope cookie that store the session initial value from the URL parameter fbclid
+      - name: session_ga_visitor_id
+        description: Google Analytics client ID (visitor ID) based on the native GA4 cookie and related JavaScript methods
+
+
+  - name: stg_airbyte_hubspot_event_signup_web_app
+    description: Staging table for Hubspot custom events related to web app signups
+    columns:
+      - name: hs_event_id
+        description: Identifier of Hubspot event
+        tests:
+          - unique
+          - not_null
+      - name: hs_contact_id
+        description: Identifier of the contact that generated the event (required)
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: Timestamp at which the event occurred
+          - not_null
+      - name: web_event_type
+        description: Event name of the event that generate the Hubspot event as available in the tracking plan
+      - name: session_utm_source
+        description: Traffic source variable utm_source based on a session-scope cookie that store the session initial value from the URL parameter utm_source
+      - name: session_utm_medium
+        description: Traffic source variable utm_medium based on a session-scope cookie that store the session initial value from the URL parameter utm_medium
+      - name: session_utm_campaign
+        description: Traffic source variable utm_campaign based on a session-scope cookie that store the session initial value from the URL parameter utm_campaign
+      - name: session_utm_id
+        description: Traffic source variable utm_id based on a session-scope cookie that store the session initial value from the URL parameter utm_id
+      - name: session_utm_content
+        description: Traffic source variable utm_content based on a session-scope cookie that store the session initial value from the URL parameter utm_content
+      - name: session_utm_term
+        description: Traffic source variable utm_term based on a session-scope cookie that store the session initial value from the URL parameter utm_term
+      - name: session_referrer
+        description: Referrer for the session based on a session-scope cookie that store the session initial value from the JavaScript `document.referrer` variable
+      - name: session_landing_page
+        description: Landing page for the session based on a session-scope cookie that store the session initial value from the JavaScript `window.location.href` variable
+      - name: session_gclid
+        description: Traffic source variable gclid based on a session-scope cookie that store the session initial value from the URL parameter gclid
+      - name: session_fbclid
+        description: Traffic source variable fbclid based on a session-scope cookie that store the session initial value from the URL parameter fbclid
+      - name: session_ga_visitor_id
+        description: Google Analytics client ID (visitor ID) based on the native GA4 cookie and related JavaScript methods
+
+
+  - name: stg_airbyte_hubspot_event_visited_page
+    description: Staging table for Hubspot visited page events tracked by the Hubspot pixel on the website
+    columns:
+      - name: hs_event_id
+        description: Identifier of Hubspot event
+        tests:
+          - unique
+          - not_null
+      - name: hs_contact_id
+        description: Identifier of the contact that generated the event (required)
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: Timestamp at which the event occurred
+          - not_null
+      - name: hs_company_id
+        description: Identifier of the Hubspot company
+      - name: visit_source
+        description: Visit source computed by Hubspot internal attribution mechanism
+      - name: visit_source_details_1
+        description: Visit source detail 1 computed by Hubspot internal attribution mechanism
+      - name: visit_source_details_2
+        description: Visit source detail 2 computed by Hubspot internal attribution mechanism
+      - name: utm_source
+        description: Traffic source variable utm_source catched by Hubspot
+      - name: utm_medium
+        description: Traffic source variable utm_medium catched by Hubspot
+      - name: utm_campaign
+        description: Traffic source variable utm_campaign catched by Hubspot
+      - name: utm_content
+        description: Traffic source variable utm_content catched by Hubspot
+      - name: utm_term
+        description: Traffic source variable utm_term catched by Hubspot
+      - name: referrer
+        description: Referrer catched by Hubspot
+      - name: url
+        description: URL of the page catched by Hubspot
+      - name: hs_browser_fingerprint
+        description: Fingerprint of the browser that generated the page view
+
+
+  - name: stg_airbyte_hubspot_form_submissions
+    description: Form submissions represent the action of a user to submit a form on the website
+    columns:
+      - name: form_submission_id
+        description: Identifier of the form submission (required)
+        tests:
+          - unique
+          - not_null
+      - name: form_id
+        description: Identifier of the form (required)
+        tests:
+          - not_null
+      - name: submission_timestamp
+        description: Timestamp at which the form was submitted by the user (required)
+        tests:
+          - not_null
+      - name: page_url
+        description: URL of the page on which the form was submitted by the user
+      - name: email_address
+        description: Value of the email_address field of the form (if applicable)
+      - name: product_type
+        description: Value of the product_type field of the form (if applicable)
+      - name: utm_source
+        description: Value of the utm_source field of the form (if applicable)
+      - name: utm_medium
+        description: Value of the utm_medium field of the form (if applicable)
+      - name: utm_campaign
+        description: Value of the utm_campaign field of the form (if applicable)
+      - name: utm_content
+        description: Value of the utm_content field of the form (if applicable)
+      - name: utm_term
+        description: Value of the utm_term field of the form (if applicable)
+      - name: session_utm_source
+        description: Value of the session_utm_source field of the form (if applicable)
+      - name: session_utm_medium
+        description: Value of the session_utm_medium field of the form (if applicable)
+      - name: session_utm_campaign
+        description: Value of the session_utm_campaign field of the form (if applicable)
+      - name: session_utm_id
+        description: Value of the session_utm_id field of the form (if applicable)
+      - name: session_utm_content
+        description: Value of the session_utm_content field of the form (if applicable)
+      - name: session_utm_term
+        description: Value of the session_utm_term field of the form (if applicable)
+      - name: session_referrer
+        description: Value of the session_referrer field of the form (if applicable)
+      - name: session_landing_page
+        description: Value of the session_landing_page field of the form (if applicable)
+      - name: session_gclid
+        description: Value of the session_gclid field of the form (if applicable)
+      - name: session_fbclid
+        description: Value of the session_fbclid field of the form (if applicable)
+      - name: session_ga_visitor_id
+        description: Value of the session_ga_visitor_id field of the form (if applicable)
+
+
+  - name: stg_airbyte_hubspot_forms
+    description: Forms represent the configuration of the form that can be submitted
+    columns:
+      - name: form_id
+        description: Identifier of the form (required)
+        tests:
+          - unique
+          - not_null
+      - name: form_name
+        description: Name of the form
+      - name: form_type
+        description: Type of the form
