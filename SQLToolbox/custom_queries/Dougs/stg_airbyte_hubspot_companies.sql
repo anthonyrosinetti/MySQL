@@ -1,0 +1,23 @@
+SELECT
+    CAST(id AS STRING) AS company_id,
+    properties_dougs_company_id AS dougs_company_id,
+    properties_name AS company_name,
+    NULLIF(REPLACE(TO_JSON_STRING(contacts[0]) ,"\"", ""), 'null') AS contact_1,
+    NULLIF(REPLACE(TO_JSON_STRING(contacts[1]) ,"\"", ""), 'null') AS contact_2,
+    NULLIF(REPLACE(TO_JSON_STRING(contacts[2]) ,"\"", ""), 'null') AS contact_3,
+    EXTRACT(DATE FROM createdAt) AS created_at,
+    EXTRACT(DATE FROM updatedAt) AS updated_at,
+    IFNULL(properties_city, '-') AS city,
+    IFNULL(properties_country, '-') AS country,
+    IFNULL(properties_forme_legale, '-') AS legal_form,
+    IFNULL(properties_code_naf_ape, '-') AS ape_code,
+    IFNULL(properties_type_d_activite, '-') AS activity,
+    properties_hs_lead_status AS lead_status,
+    SAFE_CAST(properties_creation_d_entreprise__ AS BOOLEAN) AS has_company_creation,
+    properties_abonnement AS subscription_plan,
+    properties_eligible__ AS eligible,
+    properties_date_de_phase_de_saisie___devis_1_envoye AS quote_1_created_date,
+    properties_date_de_phase_de_saisie___devis_2_valide AS quote_2_accepted_date,
+    properties_raison_de_la_perte AS lost_reason,
+    _airbyte_extracted_at AS date_last_refresh
+FROM {{ source('bronze_airbyte_hubspot', 'companies') }}
