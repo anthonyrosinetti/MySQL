@@ -73,7 +73,7 @@ hs_contacts_first_pages AS (
         hs_contact_id AS contact_id,
         REGEXP_EXTRACT(url, r"^(?:https?://)?[^/]+(/[^?#]*)") AS contact_first_page
     FROM
-        {{ ref('stg_airbyte_hubspot_event_visited_page') }} AS p
+        {{ ref('stg_airbyte_hubspot_event_visited_pages') }} AS p
     WHERE
         REGEXP_EXTRACT(url, r"^(?:https?://)?([^/?#]+)") = 'www.dougs.fr'        
     QUALIFY
