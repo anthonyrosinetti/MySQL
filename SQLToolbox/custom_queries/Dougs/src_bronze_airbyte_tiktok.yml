@@ -1,0 +1,128 @@
+version: 2
+
+sources:
+  - name: bronze_airbyte_tiktok
+    description: Raw data from TikTok Ads sent via Airbyte within BigQuery
+    database: data-production-398108
+    schema: bronze_airbyte_tiktok
+    config:
+      freshness:
+        warn_after: { count: 24, period: hour }
+        error_after: { count: 48, period: hour }
+    loaded_at_field: _airbyte_extracted_at
+
+    tables:
+      - name: ads
+        description: Attributes of the TikTok Ads ads
+        columns:
+          - name: ad_id
+            description: Identifier of the ad (required)
+            tests:
+              - not_null
+          - name: ad_name
+            description: Name of the ad
+      - name: ads_reports_daily
+        description: Daily TikTok Ads statistics at the ad granularity
+        columns:
+          - name: stat_time_day
+            description: Date of the statistics (required)
+            tests:
+              - not_null
+          - name: ad_id
+            description: Identifier of the ad (required)
+            tests:
+              - not_null
+          - name: metrics
+            description: JSON containing the statistics for the specific day and ad
+      - name: ad_groups
+        description: Attributes of the TikTok Ads ad groups
+        columns:
+          - name: adgroup_id
+            description: Identifier of the ad group (required)
+            tests:
+              - not_null
+          - name: adgroup_name
+            description: Name of the ad group
+      - name: campaigns
+        description: Attributes of the TikTok Ads campaigns
+        columns:
+          - name: campaign_id
+            description: Identifier of the campaign (required)
+            tests:
+              - not_null
+          - name: campaign_name
+            description: Name of the campaign
+
+
+models:
+  - name: stg_tiktok_ads_ads
+    description: Attributes of the TikTok Ads ads
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed (required)
+        tests:
+          - not_null
+      - name: ad_id
+        description: Identifier of the ad (required)
+        tests:
+          - not_null
+      - name: ad_name
+        description: Name of the ad
+
+  - name: stg_tiktok_ads_ads_daily_reports
+    description: Daily TikTok Ads statistics at the ad granularity
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed (required)
+        tests:
+          - not_null
+      - name: date_report
+        description: Date of the statistics (required)
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of the campaign (required)
+        tests:
+          - not_null
+      - name: adgroup_id
+        description: Identifier of the ad group (required)
+        tests:
+          - not_null
+      - name: ad_id
+        description: Identifier of the ad (required)
+        tests:
+          - not_null
+      - name: impressions
+        description: Volume of impression on ads
+      - name: clicks
+        description: Volume of clicks on ads
+      - name: spend
+        description: Budget spent on ads, in the account currency (EUR for Dougs)
+
+  - name: stg_tiktok_ads_ad_groups
+    description: Attributes of the TikTok Ads ad groups
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed (required)
+        tests:
+          - not_null
+      - name: adgroup_id
+        description: Identifier of the ad group (required)
+        tests:
+          - not_null
+      - name: adgroup_name
+        description: Name of the ad group
+
+  - name: stg_tiktok_ads_campaigns
+    description: Attributes of the TikTok Ads campaigns
+    columns:
+      - name: timestamp_last_refresh
+        description: Timestamp at which the data was refreshed (required)
+        tests:
+          - not_null
+      - name: campaign_id
+        description: Identifier of the campaign (required)
+        tests:
+          - not_null
+      - name: campaign_name
+        description: Name of the campaign
