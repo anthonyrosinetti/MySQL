@@ -1,0 +1,8 @@
+CONCAT(
+  FLOOR(collect_time_ckc_express / 86400),
+  " j ",
+  FLOOR(MOD(collect_time_ckc_express, 86400) / 3600),
+  " h ",
+  FLOOR(MOD(collect_time_ckc_express, 3600) / 60),
+  " min "
+)
