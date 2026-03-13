@@ -1,0 +1,5 @@
+SUM(CASE
+	WHEN Granularité temporelle = "Jour" AND DATETIME_DIFF(date_actual,date_cohort,DAY) <= 5 AND DATETIME_DIFF(CURRENT_DATE(),date_cohort,DAY) >= 5 THEN clients_direct_accounting_by_mql_date
+	WHEN Granularité temporelle = "Semaine" AND DATETIME_DIFF(date_actual,date_cohort,WEEK) <= 5 AND DATETIME_DIFF(CURRENT_DATE(),date_cohort,WEEK) >= 5 THEN clients_direct_accounting_by_mql_date
+	WHEN Granularité temporelle = "Mois" AND DATETIME_DIFF(date_actual,date_cohort,MONTH) <= 5 AND DATETIME_DIFF(CURRENT_DATE(),date_cohort,MONTH) >= 5 THEN clients_direct_accounting_by_mql_date
+END)/SUM(mqls_by_mql_date)
