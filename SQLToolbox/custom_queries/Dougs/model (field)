@@ -1,0 +1,8 @@
+CASE Modèle d'attribution
+  WHEN "First-touch" THEN "first_touch"
+  WHEN "1er formulaire" THEN "first_form"
+  WHEN "Lead last-touch" THEN "lead_last_touch"
+  WHEN "MQL last-touch" THEN "mql_last_touch"
+  WHEN "Lead linéaire" THEN "lead_linear"
+  WHEN "MQL linéaire" THEN "mql_linear"
+END 
