@@ -1,0 +1,409 @@
+SELECT
+	gender,
+	age_range,
+	eligible,
+	legal_form,
+	ape_activity_name,
+	activity,
+	first_conversion_form,
+	first_conversion_form_category,
+	first_conversion_form_type,
+	first_page,
+	first_page_category,
+	contact_category,
+	lost_reason,
+	contact_type,
+	treatment_type,
+	source_name,
+	channel,
+	campaign_group,
+	term,
+  	CAST(NULL AS STRING) AS attribution_model_type,
+	pack_choice,
+	utm_source,
+	utm_medium,
+	utm_campaign,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		(date_mql < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @DS_END_DATE))
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_accounting IS NULL)            
+            AND
+            (date_lost > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_lost IS NULL)
+      	THEN hubspot_contact_id END) AS open_mqls,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		(date_mql < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @DS_END_DATE))
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_accounting IS NULL)            
+            AND
+            (date_lost BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE))
+            AND
+            eligible = False
+      	THEN hubspot_contact_id END) AS ineligible_mqls,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		(date_mql < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @DS_END_DATE) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @DS_END_DATE))
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_accounting IS NULL)            
+            AND
+            (date_lost BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE))
+            AND
+            lost_reason IN ('[2] Injoignable','Injoignable')
+      	THEN hubspot_contact_id END) AS unreachable_mqls,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		date_lost BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
+      	THEN hubspot_contact_id END) AS lost_contacts,            
+	COUNT(DISTINCT CASE
+      	WHEN
+      		date_won_creation BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
+      	THEN hubspot_contact_id END) AS clients_creation,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		date_won_accounting BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
+      	THEN hubspot_contact_id END) AS clients_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+            date_won_accounting BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE)
+            AND
+      		(date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting)
+      		AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)
+      	THEN hubspot_contact_id END) AS clients_direct_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		date_won_accounting BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE) AND date_won_creation <= date_won_accounting
+      THEN hubspot_contact_id END) AS clients_crea_to_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		date_won_accounting BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE) AND date_won_invoicing <= date_won_accounting AND (date_won_creation IS NULL OR date_won_creation > date_won_accounting)
+      THEN hubspot_contact_id END) AS clients_invoicing_to_accounting,
+	CAST(NULL AS INT64) AS compare_open_mqls,
+	CAST(NULL AS INT64) AS compare_ineligible_mqls,
+	CAST(NULL AS INT64) AS compare_unreachable_mqls,
+  	CAST(NULL AS INT64) AS compare_lost_contacts,
+	CAST(NULL AS INT64) AS compare_clients_creation,
+	CAST(NULL AS INT64) AS compare_clients_accounting,
+	CAST(NULL AS INT64) AS compare_clients_direct_accounting,
+	CAST(NULL AS INT64) AS compare_clients_crea_to_accounting,
+	CAST(NULL AS INT64) AS compare_clients_invoicing_to_accounting
+FROM
+    `data-production-398108.dbt_prod_marts.mart_touchpoints`
+GROUP BY
+	gender,
+	age_range,
+	eligible,
+	legal_form,
+	ape_activity_name,
+	activity,
+	first_conversion_form,
+	first_conversion_form_category,
+	first_conversion_form_type,
+	first_page,
+	first_page_category,
+	contact_category,
+	lost_reason,
+	contact_type,
+	treatment_type,
+	source_name,
+	channel,
+	campaign_group,
+	term,
+	attribution_model_type,
+	pack_choice,
+	utm_source,
+	utm_medium,
+	utm_campaign
+
+UNION ALL
+
+SELECT
+	gender,
+	age_range,
+	eligible,
+	legal_form,
+	ape_activity_name,
+	activity,
+	first_conversion_form,
+	first_conversion_form_category,
+	first_conversion_form_type,
+	first_page,
+	first_page_category,
+	contact_category,
+	lost_reason,
+	contact_type,
+	treatment_type,
+	source_name,
+	channel,
+	campaign_group,
+	term,
+  	CAST(NULL AS STRING) AS attribution_model_type,
+	pack_choice,
+	utm_source,
+	utm_medium,
+	utm_campaign,
+	CAST(NULL AS INT64) AS open_mqls,
+  	CAST(NULL AS INT64) AS ineligible_mqls,  
+	CAST(NULL AS INT64) AS unreachable_mqls,
+  	CAST(NULL AS INT64) AS lost_contacts,
+	CAST(NULL AS INT64) AS clients_creation,
+	CAST(NULL AS INT64) AS clients_accounting,
+	CAST(NULL AS INT64) AS clients_direct_accounting,
+	CAST(NULL AS INT64) AS clients_crea_to_accounting,
+	CAST(NULL AS INT64) AS clients_invoicing_to_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_accounting IS NULL)
+            AND
+            (date_lost > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_lost IS NULL)
+      		OR
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_accounting IS NULL)      
+            AND
+            (date_lost > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_lost IS NULL)
+      		OR
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+      		(date_mql < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @compared_date_range_end))      
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_accounting IS NULL)
+            AND
+            (date_lost > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_lost IS NULL)      
+      	THEN hubspot_contact_id END) AS compare_open_mqls,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_accounting IS NULL)
+            AND
+            (date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH))
+            AND
+            eligible = False            
+      		OR
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_accounting IS NULL)      
+            AND
+            (date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR))
+            AND
+            eligible = False            
+      		OR
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+      		(date_mql < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @compared_date_range_end))      
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_accounting IS NULL)
+            AND
+            (date_lost BETWEEN PARSE_DATE("%Y%m%d", @compared_date_range_start) AND PARSE_DATE("%Y%m%d", @compared_date_range_end)) 
+            AND
+            eligible = False                 
+      	THEN hubspot_contact_id END) AS compare_ineligible_open_mqls,    
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) OR date_won_accounting IS NULL)
+            AND
+            (date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH))
+            AND
+            lost_reason IN ('[2] Injoignable','Injoignable')
+      		OR
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		(date_mql < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_opportunity) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR) OR DATE(date_sql) < DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR))
+            AND
+            (date_won_creation > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) OR date_won_accounting IS NULL)      
+            AND
+            (date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR))
+            AND
+            lost_reason IN ('[2] Injoignable','Injoignable')    
+      		OR
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+      		(date_mql < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_opportunity) < PARSE_DATE("%Y%m%d", @compared_date_range_end) OR DATE(date_sql) < PARSE_DATE("%Y%m%d", @compared_date_range_end))      
+            AND
+            (date_won_creation > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_creation IS NULL)
+            AND
+            (date_won_accounting > PARSE_DATE("%Y%m%d", @compared_date_range_start) OR date_won_accounting IS NULL)
+            AND
+            (date_lost BETWEEN PARSE_DATE("%Y%m%d", @compared_date_range_start) AND PARSE_DATE("%Y%m%d", @compared_date_range_end)) 
+            AND
+            lost_reason IN ('[2] Injoignable','Injoignable')
+        THEN hubspot_contact_id END) AS compare_unreachable_open_mqls,   
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND
+      		date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+      		OR
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		date_lost BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+		    OR
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+      		date_lost BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+      	THEN hubspot_contact_id END) AS compare_lost_contacts,                    
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND
+      		date_won_creation BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+      		OR
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		date_won_creation BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+		    OR
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+      		date_won_creation BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+      	THEN hubspot_contact_id END) AS compare_clients_creation,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND      
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+		    OR      
+      		@type_de_comparaison = "Année précédente"
+      		AND      
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+		    OR      
+      		@type_de_comparaison = "Personnalisée"
+      		AND      
+      		date_won_accounting BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+      	THEN hubspot_contact_id END) AS compare_clients_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND   
+            date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+            AND
+      		(date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting)
+      		AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)
+		    OR      
+      		@type_de_comparaison = "Année précédente"
+      		AND
+            date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+            AND
+      		(date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting)
+      		AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)
+		    OR      
+      		@type_de_comparaison = "Personnalisée"
+      		AND
+            date_won_accounting BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+            AND
+      		(date_won_invoicing IS NULL OR date_won_invoicing > date_won_accounting)
+      		AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)      
+      	THEN hubspot_contact_id END) AS compare_clients_direct_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND      
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+      		AND
+      		date_won_creation <= date_won_accounting
+			OR 
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+      		AND
+      		date_won_creation <= date_won_accounting
+		    OR      
+      		@type_de_comparaison = "Personnalisée"
+      		AND      
+      		date_won_accounting BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+      		AND
+      		date_won_creation <= date_won_accounting      
+      	THEN hubspot_contact_id END) AS compare_clients_crea_to_accounting,
+	COUNT(DISTINCT CASE
+      	WHEN
+      		@type_de_comparaison = "Mois précédent"
+      		AND      
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 MONTH) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 MONTH)
+      		AND
+      		date_won_invoicing <= date_won_accounting
+			AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)      
+			OR 
+      		@type_de_comparaison = "Année précédente"
+      		AND
+      		date_won_accounting BETWEEN DATE_SUB(PARSE_DATE("%Y%m%d", @DS_START_DATE),INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE("%Y%m%d", @DS_END_DATE),INTERVAL 1 YEAR)
+      		AND
+      		date_won_invoicing <= date_won_accounting
+			AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting) 
+		    OR      
+      		@type_de_comparaison = "Personnalisée"
+      		AND      
+      		date_won_accounting BETWEEN PARSE_DATE("%Y-%m-%d", @compared_date_range_start) AND PARSE_DATE("%Y-%m-%d", @compared_date_range_end)
+      		AND
+      		date_won_invoicing <= date_won_accounting
+			AND
+      		(date_won_creation IS NULL OR date_won_creation > date_won_accounting)     
+      	THEN hubspot_contact_id END) AS compare_clients_invoicing_to_accounting
+FROM
+    `data-production-398108.dbt_prod_marts.mart_touchpoints`
+GROUP BY
+    gender,
+    age_range,
+    eligible,
+    legal_form,
+    ape_activity_name,
+    activity,
+    first_conversion_form,
+    first_conversion_form_category,
+    first_conversion_form_type,
+    first_page,
+    first_page_category,
+    contact_category,
+    lost_reason,
+    contact_type,
+    treatment_type,
+    source_name,
+    channel,
+    campaign_group,
+    term,
+    attribution_model_type,
+    pack_choice ,
+	utm_source,
+	utm_medium,
+	utm_campaign
