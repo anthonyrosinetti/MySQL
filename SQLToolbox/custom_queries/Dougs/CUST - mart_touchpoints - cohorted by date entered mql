@@ -1,0 +1,43 @@
+SELECT DISTINCT
+	hubspot_contact_id,
+	dougs_user_id,
+	hubspot_company_id,
+	dougs_company_id,
+	gender,
+	age_range,
+	eligible,
+	legal_form,
+	ape_activity_name,
+	activity,
+	first_conversion_form,
+	first_conversion_form_category,
+	first_conversion_form_type,
+	first_page,
+	first_page_category,
+	lead_source,
+	original_source,
+	contact_category,
+	lost_reason,
+	contact_type,
+	treatment_type,
+    CAST(NULL AS STRING) AS attribution_model_type,
+	pack_choice,
+	date_lost,
+	date_lead,
+	date_mql,
+	date_opportunity,
+	date_sql,
+	date_won_invoicing,
+	date_won_creation,
+	date_won_accounting,
+	CASE WHEN is_first_touch_attribution_model THEN source_name ELSE NULL END AS source_name,
+	CASE WHEN is_first_touch_attribution_model THEN channel ELSE NULL END AS channel,
+	CASE WHEN is_first_touch_attribution_model THEN campaign_group ELSE NULL END AS campaign_group
+FROM
+    `data-production-398108.dbt_prod_marts.mart_touchpoints`
+WHERE
+	(date_mql BETWEEN PARSE_DATE("%Y%m%d", @DS_START_DATE) AND PARSE_DATE("%Y%m%d", @DS_END_DATE))
+    AND
+    (date_won_creation > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_creation IS NULL)
+    AND
+    (date_won_accounting > PARSE_DATE("%Y%m%d", @DS_START_DATE) OR date_won_accounting IS NULL)
