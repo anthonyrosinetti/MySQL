@@ -1,0 +1,79 @@
+utm_source	utm_medium	via	Source Name	Channel	Sort (ASC)
+google	ads		Google Ads	Paid Search	1
+google	cpc		Google Ads	Paid Search	2
+google	ppc		Google Ads	Paid Search	3
+%adwords%			Google Ads	Paid Search	4
+google	retargeting		Google Ads	Paid Search	5
+google	cpm		Google Ads	Paid Search	6
+google	paid		Google Ads	Paid Search	7
+google	organic		Google Organic	SEO	8
+youtube	paid%		YouTube	Paid Social	9
+youtube			YouTube	Organic Social	10
+linkedin	ads		Linkedin Ads	Paid Social	11
+linkedin	cpc		Linkedin Ads	Paid Social	12
+linkedin	ppc		Linkedin Ads	Paid Social	13
+linkedin	cpm		Linkedin Ads	Paid Social	14
+linkedin	retargeting		Linkedin Ads	Paid Social	15
+linkedin	paid%		Linkedin Ads	Paid Social	16
+%linkedin%	organic		Linkedin Organic	Organic Social	17
+%paid%	%facebook%		Meta Ads	Paid Social	18
+%facebook%	%ads%		Meta Ads	Paid Social	19
+facebook	cpc		Meta Ads	Paid Social	20
+facebook	ppc		Meta Ads	Paid Social	21
+facebook	cpm		Meta Ads	Paid Social	22
+facebook	retargeting		Meta Ads	Paid Social	23
+facebook	paid%		Meta Ads	Paid Social	24
+facebook	social		Facebook Organic	Organic Social	25
+instagram	paid%		Meta Ads	Paid Social	26
+meta	ads		Meta Ads	Paid Social	27
+meta	cpc		Meta Ads	Paid Social	28
+meta	ppc		Meta Ads	Paid Social	29
+meta 	cpm		Meta Ads	Paid Social	30
+meta	retargeting		Meta Ads	Paid Social	31
+meta	paid		Meta Ads	Paid Social	32
+instagram	social		Instagram Organic	Organic Social	33
+ig	social		Instagram Organic	Organic Social	34
+affiliation			Affiliation	Affiliation	35
+%adyen%			Payment Service Provider	Payment Service Provider	36
+%ogone%			Payment Service Provider	Payment Service Provider	37
+%getalma%			Payment Service Provider	Payment Service Provider	38
+%klarna%			Payment Service Provider	Payment Service Provider	39
+onsite			Onsite banner	Onsite banner	40
+gmb			GMB	GMB	41
+%hillspet%			Criteo	Criteo	42
+%qwant%	referral		Qwant Search	SEO	43
+%bing%	referral		Bing Search	SEO	44
+%google%	referral		Google Search	SEO	45
+%yahoo%	referral		Yahoo Search	SEO	46
+%yahoo%	organic		Yahoo Organic	SEO	47
+%duckduckgo%	referral		Duckduckgo Search	SEO	48
+%duckduckgo%	organic		Duckduckgo Organic	SEO	49
+%ecosia%	referral		Ecosia Search	SEO	50
+%ecosia%	organic		Ecosia Organic	SEO	51
+%baidu%	organic		Baidu Organic	SEO	52
+%brave%	referral		Brave Search	SEO	53
+	organic		SEO	SEO	54
+%twitch%	social		Twitch Organic	Organic Social	55
+%twitter%	social		Twitter Organic	Organic Social	56
+%reddit%	social		Reddit Organic	Organic Social	57
+%tiktok%	referral		Tiktok Organic	Organic Social	58
+%meta%	referral		Facebook Organic	Organic Social	59
+%snapchat%	referral		Snapchat Organic	Organic Social	60
+%pinterest%	referral		Pinterest Organic	Organic Social	61
+%twitter%	referral		Twitter Organic	Organic Social	62
+%facebook%	referral		Facebook Organic	Organic Social	63
+%instagram%	referral		Instagram Organic	Organic Social	64
+%linkedin%	referral		Linkedin Organic	Organic Social	65
+%chatgpt%			AI Referrals	AI Referrals	66
+%perplexity%			AI Referrals	AI Referrals	67
+	%referral%		Referral Websites	Referral Websites	68
+partenariat			Partnership	Partnership	69
+partner			Partnership	Partnership	70
+parrainage			Sponsorship	Sponsorship	71
+		%%	Sponsorship	Sponsorship	72
+	%mail%		Email	Email	73
+%mail%			Email	Email	74
+hs_automation			Email	Email	75
+direct	none		Direct	Direct	76
+(direct)	(none)		Direct	Direct	77
+			Direct	Direct	78
