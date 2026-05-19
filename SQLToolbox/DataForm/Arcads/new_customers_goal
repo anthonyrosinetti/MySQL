@@ -1,0 +1,9 @@
+CASE
+	WHEN (3000000-net_mrr)/(average_first_time_purchase_amount*30) >=0 THEN
+    	CASE
+        	WHEN Time scale = 'Daily' THEN (3000000-net_mrr)/(average_first_time_purchase_amount*30)
+        	WHEN Time scale = 'Weekly' THEN (3000000-net_mrr)/(average_first_time_purchase_amount*4)
+            WHEN Time scale = 'Monthly' THEN (3000000-net_mrr)/(average_first_time_purchase_amount)
+        END
+    ELSE 0
+END  
