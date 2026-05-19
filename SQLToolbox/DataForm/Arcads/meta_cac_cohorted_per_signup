@@ -1,0 +1,1 @@
+SUM(CASE WHEN adjusted_source_name = 'Meta Ads' THEN SPEND END)/SUM(CASE WHEN adjusted_source_name = 'Meta Ads' THEN FIRST_PURCHASES_BY_SIGNUP_DATE END)
