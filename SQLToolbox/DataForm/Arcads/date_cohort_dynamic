@@ -1,0 +1,5 @@
+CASE
+	WHEN Time scale = "Daily" THEN TODATE(DATE_COHORT,"%y-%m-%d")
+	WHEN Time scale = "Weekly" THEN TODATE(DATETIME_TRUNC(DATE_COHORT, ISOWEEK), "%y-%m-%d")
+	WHEN Time scale = "Monthly" THEN TODATE(DATE_COHORT,"%Y-%m")
+END
